@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db.changelog-001-create-app-user.yaml
+      relativeToChangelogFile: true
+
