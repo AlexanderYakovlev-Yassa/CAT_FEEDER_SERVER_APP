@@ -40,6 +40,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 # Set JVM options for containerized environment
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
 
+# Activate the production Spring profile
+ENV SPRING_PROFILES_ACTIVE=prod
+
 # Run the application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
 
