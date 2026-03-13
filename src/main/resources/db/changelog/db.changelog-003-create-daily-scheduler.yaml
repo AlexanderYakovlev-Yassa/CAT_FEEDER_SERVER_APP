@@ -1,0 +1,68 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-daily-scheduler
+      author: auto
+      changes:
+        - createTable:
+            tableName: daily_scheduler
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: task_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: device_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: daily_scheduler
+            baseColumnNames: user_id
+            constraintName: fk_scheduler_user
+            referencedTableName: app_user
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: daily_scheduler
+            baseColumnNames: device_id
+            constraintName: fk_scheduler_device
+            referencedTableName: device
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createTable:
+            tableName: scheduler_times
+            columns:
+              - column:
+                  name: scheduler_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: scheduled_time
+                  type: TIME
+        - addForeignKeyConstraint:
+            baseTableName: scheduler_times
+            baseColumnNames: scheduler_id
+            constraintName: fk_times_scheduler
+            referencedTableName: daily_scheduler
+            referencedColumnNames: id
+            onDelete: CASCADE
+

@@ -1,0 +1,77 @@
+services:
+
+  mqtt-service:
+    image: eclipse-mosquitto
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./volumes/mqtt/config:/mosquitto/config
+      - ./volumes/mqtt/security:/mosquitto/security
+      - ./volumes/mqtt/data:/mosquitto/data
+      - ./volumes/mqtt/log:/mosquitto/log
+    command:
+      - "sh"
+      - "-c"
+      - "apk update && apk add logrotate && chmod 0700 /mosquitto/security/password_file && logrotate /mosquitto/config/mosquitto.logrotate && mosquitto -c /mosquitto/config/mosquitto.conf"
+    restart: unless-stopped
+    networks:
+      - cat-feeder-net
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: feeder
+      POSTGRES_USER: alex
+      POSTGRES_PASSWORD: 123
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./volumes/postgres/data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - cat-feeder-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alex -d feeder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  feeder-server:
+    build:
+      context: .
+      dockerfile: ./server-app/Dockerfile
+    image: cat-feeder-server:latest
+    container_name: feeder-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mqtt-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: feeder
+      DB_USERNAME: alex
+      DB_PASSWORD: 123
+      MQTT_BROKER: tcp://mqtt-service:1883
+      MQTT_USERNAME: alex
+      MQTT_PASSWORD: 123
+      MQTT_PERSISTENCE_DIR: /app/mqtt-persistence
+    ports:
+      - "8080:8080"
+    networks:
+      - cat-feeder-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/feeder-service/api/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  cat-feeder-net:
+    driver: bridge
