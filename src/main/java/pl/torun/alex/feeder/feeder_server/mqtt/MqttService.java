@@ -7,6 +7,8 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -32,7 +34,21 @@ public class MqttService implements MqttCallback {
     public void start() {
         try {
             logger.info("Starting MQTT client connecting to {}", properties.getBroker());
-            client = new MqttClient(properties.getBroker(), properties.getClientId());
+
+            // Check for custom persistence directory from environment variable
+            String persistenceDir = System.getenv("MQTT_PERSISTENCE_DIR");
+
+            if (persistenceDir != null && !persistenceDir.isBlank()) {
+                // Use file persistence with custom directory
+                logger.info("Using file persistence at directory: {}", persistenceDir);
+                MqttDefaultFilePersistence persistence = new MqttDefaultFilePersistence(persistenceDir);
+                client = new MqttClient(properties.getBroker(), properties.getClientId(), persistence);
+            } else {
+                // Fallback to memory persistence if directory not set
+                logger.info("Using memory persistence (no MQTT_PERSISTENCE_DIR set)");
+                client = new MqttClient(properties.getBroker(), properties.getClientId(), new MemoryPersistence());
+            }
+
             MqttConnectOptions opts = new MqttConnectOptions();
             if (properties.getUsername() != null && !properties.getUsername().isBlank()) {
                 opts.setUserName(properties.getUsername());

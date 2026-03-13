@@ -1,20 +1,19 @@
 package pl.torun.alex.feeder.feeder_server.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.time.LocalTime;
 import java.util.List;
 
 @Entity
 @Table(name = "daily_scheduler")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(of = "id")
+@ToString(exclude = {"user", "device"})
 public class DailyScheduler {
 
     @Id
@@ -32,10 +31,10 @@ public class DailyScheduler {
     @JoinColumn(name = "device_id", nullable = false)
     private Device device;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "scheduler_times", joinColumns = @JoinColumn(name = "scheduler_id"))
     @Column(name = "scheduled_time")
-    private List<LocalTime> scheduledTimes;
+    private List<FeedingMetadata> feedingMetadata;
 
     @Column(nullable = false)
     private Boolean active = true;

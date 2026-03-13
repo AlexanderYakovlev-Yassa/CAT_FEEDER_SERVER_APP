@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-refactor-scheduler-times
+      author: auto
+      changes:
+        # Drop the old scheduler_times table
+        - dropTable:
+            tableName: scheduler_times
+            cascadeConstraints: true
+
+        # Create new scheduler_times table with feeding metadata
+        - createTable:
+            tableName: scheduler_times
+            columns:
+              - column:
+                  name: scheduler_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount_in_grams
+                  type: INTEGER
+              - column:
+                  name: feeding_time
+                  type: TIME
+                  constraints:
+                    nullable: false
+
+        # Add foreign key constraint
+        - addForeignKeyConstraint:
+            baseTableName: scheduler_times
+            baseColumnNames: scheduler_id
+            constraintName: fk_times_scheduler
+            referencedTableName: daily_scheduler
+            referencedColumnNames: id
+            onDelete: CASCADE
+
