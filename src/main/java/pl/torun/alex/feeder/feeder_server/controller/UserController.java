@@ -1,6 +1,7 @@
 package pl.torun.alex.feeder.feeder_server.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pl.torun.alex.feeder.feeder_server.dto.AppUserDto;
 import pl.torun.alex.feeder.feeder_server.service.AppUserService;
@@ -19,11 +20,13 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('read-users')")
     public List<AppUserDto> list() {
         return service.findAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('read-users')")
     public ResponseEntity<AppUserDto> get(@PathVariable Long id) {
         return service.findById(id)
                 .map(ResponseEntity::ok)
@@ -31,12 +34,14 @@ public class UserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('manage-users')")
     public ResponseEntity<AppUserDto> create(@RequestBody AppUserDto user) {
         AppUserDto created = service.create(user);
         return ResponseEntity.created(URI.create("/api/users/" + created.getId())).body(created);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage-users')")
     public ResponseEntity<AppUserDto> update(@PathVariable Long id, @RequestBody AppUserDto user) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -46,6 +51,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage-users')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();

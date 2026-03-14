@@ -1,6 +1,7 @@
 package pl.torun.alex.feeder.feeder_server.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pl.torun.alex.feeder.feeder_server.dto.DailySchedulerDto;
 import pl.torun.alex.feeder.feeder_server.service.DailySchedulerService;
@@ -19,6 +20,7 @@ public class DailySchedulerController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('read-schedule')")
     public List<DailySchedulerDto> list(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Long deviceId,
@@ -36,6 +38,7 @@ public class DailySchedulerController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('read-schedule')")
     public ResponseEntity<DailySchedulerDto> get(@PathVariable Long id) {
         return service.findById(id)
                 .map(ResponseEntity::ok)
@@ -43,12 +46,14 @@ public class DailySchedulerController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('manage-schedule')")
     public ResponseEntity<DailySchedulerDto> create(@RequestBody DailySchedulerDto scheduler) {
         DailySchedulerDto created = service.create(scheduler);
         return ResponseEntity.created(URI.create("/api/schedulers/" + created.getId())).body(created);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage-schedule')")
     public ResponseEntity<DailySchedulerDto> update(@PathVariable Long id, @RequestBody DailySchedulerDto scheduler) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -58,6 +63,7 @@ public class DailySchedulerController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('manage-schedule')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
