@@ -1,16 +1,8 @@
 databaseChangeLog:
   - changeSet:
-      id: 005-add-password-blocked-to-app-user
+      id: 005-add-blocked-to-app-user
       author: auto
       changes:
-        - addColumn:
-            tableName: app_user
-            columns:
-              - column:
-                  name: password
-                  type: varchar(255)
-                  constraints:
-                    nullable: true
         - addColumn:
             tableName: app_user
             columns:
