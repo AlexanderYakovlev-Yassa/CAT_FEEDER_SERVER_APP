@@ -1,0 +1,15 @@
+[
+  {
+    "version": "0.0.1-SNAPSHOT",
+    "releaseDate": "2026-03-14",
+    "changes": [
+      "Initial release",
+      "JWT-based authentication and authorization",
+      "Device management endpoints",
+      "Daily feeding scheduler",
+      "MQTT integration for device communication",
+      "Role and authority management"
+    ]
+  }
+]
+
