@@ -1,0 +1,135 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-password-blocked-to-app-user
+      author: auto
+      changes:
+        - addColumn:
+            tableName: app_user
+            columns:
+              - column:
+                  name: password
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+        - addColumn:
+            tableName: app_user
+            columns:
+              - column:
+                  name: blocked
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 005-create-role
+      author: auto
+      changes:
+        - createTable:
+            tableName: role
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: role
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
+      id: 005-create-authority
+      author: auto
+      changes:
+        - createTable:
+            tableName: authority
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: authority
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+  - changeSet:
+      id: 005-create-role-authority
+      author: auto
+      changes:
+        - createTable:
+            tableName: role_authority
+            columns:
+              - column:
+                  name: role_id_fk
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: authority_id_fk
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: role_authority
+            columnNames: role_id_fk, authority_id_fk
+            constraintName: pk_role_authority
+        - addForeignKeyConstraint:
+            baseTableName: role_authority
+            baseColumnNames: role_id_fk
+            constraintName: fk_role_authority_role
+            referencedTableName: role
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: role_authority
+            baseColumnNames: authority_id_fk
+            constraintName: fk_role_authority_authority
+            referencedTableName: authority
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 005-create-user-role
+      author: auto
+      changes:
+        - createTable:
+            tableName: user_role
+            columns:
+              - column:
+                  name: user_id_fk
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id_fk
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: user_role
+            columnNames: user_id_fk, role_id_fk
+            constraintName: pk_user_role
+        - addForeignKeyConstraint:
+            baseTableName: user_role
+            baseColumnNames: user_id_fk
+            constraintName: fk_user_role_user
+            referencedTableName: app_user
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: user_role
+            baseColumnNames: role_id_fk
+            constraintName: fk_user_role_role
+            referencedTableName: role
+            referencedColumnNames: id
+            onDelete: CASCADE
+

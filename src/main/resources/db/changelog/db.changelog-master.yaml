@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: db.changelog-004-refactor-scheduler-times.yaml
       relativeToChangelogFile: true
+  - include:
+      file: db.changelog-005-add-security-tables.yaml
+      relativeToChangelogFile: true
