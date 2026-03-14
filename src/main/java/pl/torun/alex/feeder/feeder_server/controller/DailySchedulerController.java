@@ -10,7 +10,7 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/schedulers")
+@RequestMapping("/schedulers")
 public class DailySchedulerController {
 
     private final DailySchedulerService service;

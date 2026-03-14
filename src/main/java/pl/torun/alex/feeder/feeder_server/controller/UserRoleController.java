@@ -10,7 +10,7 @@ import pl.torun.alex.feeder.feeder_server.service.UserRoleService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/user-roles")
+@RequestMapping("/user-roles")
 @RequiredArgsConstructor
 public class UserRoleController {
 

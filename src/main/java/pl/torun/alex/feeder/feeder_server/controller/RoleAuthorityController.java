@@ -10,7 +10,7 @@ import pl.torun.alex.feeder.feeder_server.service.RoleAuthorityService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/role-authorities")
+@RequestMapping("/role-authorities")
 @RequiredArgsConstructor
 public class RoleAuthorityController {
 
