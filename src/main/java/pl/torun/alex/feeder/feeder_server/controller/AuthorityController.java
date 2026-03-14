@@ -1,33 +1,31 @@
 package pl.torun.alex.feeder.feeder_server.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import pl.torun.alex.feeder.feeder_server.dto.AppUserDto;
-import pl.torun.alex.feeder.feeder_server.service.AppUserService;
+import pl.torun.alex.feeder.feeder_server.dto.AuthorityDto;
+import pl.torun.alex.feeder.feeder_server.service.AuthorityService;
 
 import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/users")
-public class UserController {
+@RequestMapping("/authorities")
+@RequiredArgsConstructor
+public class AuthorityController {
 
-    private final AppUserService service;
-
-    public UserController(AppUserService service) {
-        this.service = service;
-    }
+    private final AuthorityService service;
 
     @GetMapping
     @PreAuthorize("hasAuthority('read-users')")
-    public List<AppUserDto> list() {
+    public List<AuthorityDto> list() {
         return service.findAll();
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('read-users')")
-    public ResponseEntity<AppUserDto> get(@PathVariable Long id) {
+    public ResponseEntity<AuthorityDto> get(@PathVariable Long id) {
         return service.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -35,19 +33,18 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('manage-users')")
-    public ResponseEntity<AppUserDto> create(@RequestBody AppUserDto user) {
-        AppUserDto created = service.create(user);
-        return ResponseEntity.created(URI.create("/api/users/" + created.getId())).body(created);
+    public ResponseEntity<AuthorityDto> create(@RequestBody AuthorityDto dto) {
+        AuthorityDto created = service.create(dto);
+        return ResponseEntity.created(URI.create("/api/authorities/" + created.getId())).body(created);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('manage-users')")
-    public ResponseEntity<AppUserDto> update(@PathVariable Long id, @RequestBody AppUserDto user) {
+    public ResponseEntity<AuthorityDto> update(@PathVariable Long id, @RequestBody AuthorityDto dto) {
         if (service.findById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        AppUserDto updated = service.update(id, user);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(service.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
@@ -57,3 +54,4 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 }
+

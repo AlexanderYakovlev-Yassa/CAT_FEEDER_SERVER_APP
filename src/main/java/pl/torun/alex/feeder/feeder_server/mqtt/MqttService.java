@@ -57,7 +57,12 @@ public class MqttService implements MqttCallback {
                 opts.setPassword(properties.getPassword().toCharArray());
             }
             opts.setAutomaticReconnect(true);
-            opts.setCleanSession(true);
+            // cleanSession must be false when using automaticReconnect,
+            // otherwise the broker destroys the session on disconnect causing EOFException
+            opts.setCleanSession(false);
+            opts.setKeepAliveInterval(60);       // send PINGREQ every 60s to keep connection alive
+            opts.setConnectionTimeout(30);       // wait up to 30s for broker to respond
+            opts.setMaxReconnectDelay(30_000);   // cap reconnect back-off at 30s
             client.setCallback(this);
             client.connect(opts);
             logger.info("MQTT client connected with clientId={}", properties.getClientId());
@@ -110,7 +115,7 @@ public class MqttService implements MqttCallback {
 
     @Override
     public void connectionLost(Throwable cause) {
-        logger.warn("MQTT connection lost", cause);
+        logger.warn("MQTT connection lost - automatic reconnect will attempt to restore it: {}", cause.getMessage());
     }
 
     @Override
