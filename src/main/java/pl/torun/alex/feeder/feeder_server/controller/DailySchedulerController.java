@@ -37,6 +37,12 @@ public class DailySchedulerController {
         return service.findAll();
     }
 
+    @GetMapping("/device/{deviceId}")
+    @PreAuthorize("hasAuthority('read-schedule')")
+    public List<DailySchedulerDto> getByDeviceId(@PathVariable Long deviceId) {
+        return service.findByDeviceId(deviceId);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('read-schedule')")
     public ResponseEntity<DailySchedulerDto> get(@PathVariable Long id) {

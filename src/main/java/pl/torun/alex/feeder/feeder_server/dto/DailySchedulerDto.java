@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -17,7 +16,7 @@ public class DailySchedulerDto {
     private String taskName;
     private Long userId;
     private Long deviceId;
-    private List<LocalTime> scheduledTimes;
+    private List<FeedingMetadataDto> scheduledTimes;
     private Boolean active;
 }
 

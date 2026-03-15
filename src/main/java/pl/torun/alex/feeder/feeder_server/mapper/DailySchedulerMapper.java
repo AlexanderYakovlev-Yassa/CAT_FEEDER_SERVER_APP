@@ -12,10 +12,12 @@ public interface DailySchedulerMapper {
 
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "device.id", target = "deviceId")
+    @Mapping(source = "feedingMetadata", target = "scheduledTimes")
     DailySchedulerDto toDto(DailyScheduler entity);
 
     @Mapping(source = "userId", target = "user.id")
     @Mapping(source = "deviceId", target = "device.id")
+    @Mapping(source = "scheduledTimes", target = "feedingMetadata")
     DailyScheduler toEntity(DailySchedulerDto dto);
 
     FeedingMetadataDto toFeedingMetadataDto(FeedingMetadata entity);
