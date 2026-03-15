@@ -3,11 +3,11 @@ package pl.torun.alex.feeder.feeder_server.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import pl.torun.alex.feeder.feeder_server.config.AppUserDetails;
 import pl.torun.alex.feeder.feeder_server.entity.AppUser;
 import pl.torun.alex.feeder.feeder_server.entity.UserRole;
 import pl.torun.alex.feeder.feeder_server.repository.AppUserRepository;
@@ -47,12 +47,13 @@ public class AppUserDetailsService implements UserDetailsService {
             });
         }
 
-        return User.builder()
-                .username(appUser.getUsername())
-                .password(appUser.getPassword())
-                .authorities(authorities)
-                .disabled(appUser.isBlocked())
-                .build();
+        return new AppUserDetails(
+                appUser.getId(),
+                appUser.getUsername(),
+                appUser.getPassword(),
+                !appUser.isBlocked(),
+                authorities
+        );
     }
 }
 

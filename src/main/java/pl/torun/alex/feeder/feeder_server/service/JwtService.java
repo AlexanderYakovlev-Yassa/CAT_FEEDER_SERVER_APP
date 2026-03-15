@@ -22,13 +22,14 @@ public class JwtService {
 
     private final JwtProperties jwtProperties;
 
-    public String generateToken(String username, Collection<? extends GrantedAuthority> authorities) {
+    public String generateToken(Long userId, String username, Collection<? extends GrantedAuthority> authorities) {
         List<String> authorityList = authorities.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
 
         return Jwts.builder()
                 .subject(username)
+                .claim("userId", userId)
                 .claim("authorities", authorityList)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getExpirationMs()))
@@ -38,6 +39,10 @@ public class JwtService {
 
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public Long extractUserId(String token) {
+        return extractAllClaims(token).get("userId", Long.class);
     }
 
     @SuppressWarnings("unchecked")

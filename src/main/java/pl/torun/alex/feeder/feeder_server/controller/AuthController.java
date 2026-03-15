@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pl.torun.alex.feeder.feeder_server.config.AppUserDetails;
 import pl.torun.alex.feeder.feeder_server.dto.LoginRequest;
 import pl.torun.alex.feeder.feeder_server.dto.LoginResponse;
 import pl.torun.alex.feeder.feeder_server.service.JwtService;
@@ -28,8 +29,8 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String token = jwtService.generateToken(userDetails.getUsername(), userDetails.getAuthorities());
+        AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
+        String token = jwtService.generateToken(userDetails.getUserId(), userDetails.getUsername(), userDetails.getAuthorities());
 
         return ResponseEntity.ok(new LoginResponse(token));
     }

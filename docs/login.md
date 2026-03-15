@@ -137,6 +137,7 @@ The token is a signed **HS256** JWT. Decoded payload example:
 ```json
 {
   "sub": "alice",
+  "userId": 42,
   "authorities": ["ROLE_ADMIN", "DEVICE_READ", "DEVICE_WRITE"],
   "iat": 1742000000,
   "exp": 1742086400
@@ -146,6 +147,7 @@ The token is a signed **HS256** JWT. Decoded payload example:
 | Claim | Description |
 |-------|-------------|
 | `sub` | Username |
+| `userId` | Database ID of the authenticated user |
 | `authorities` | Roles and permissions granted to the user |
 | `iat` | Issued-at timestamp (Unix epoch) |
 | `exp` | Expiry timestamp (Unix epoch) |

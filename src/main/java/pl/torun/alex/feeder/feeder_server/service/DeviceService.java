@@ -17,4 +17,10 @@ public interface DeviceService {
     DeviceDto update(Long id, DeviceDto dto);
 
     void delete(Long id);
+
+    /** Creates a new device and assigns it to the given user. */
+    DeviceDto assignToUser(Long userId, DeviceDto dto);
+
+    /** Removes a device from a user; throws if the device doesn't belong to that user. */
+    void removeFromUser(Long userId, Long deviceId);
 }
