@@ -12,10 +12,10 @@
     ]
   },
   {
-    "version": "0.0.2-SNAPSHOT",
-    "releaseDate": "2026-03-14",
+    "version": "0.0.3-SNAPSHOT",
+    "releaseDate": "2026-03-16",
     "changes": [
-      "just version to test deploy"
+      "just version to test deploy +"
     ]
   }
 ]
