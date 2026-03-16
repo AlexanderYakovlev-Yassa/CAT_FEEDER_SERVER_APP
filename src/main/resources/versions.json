@@ -10,6 +10,13 @@
       "MQTT integration for device communication",
       "Role and authority management"
     ]
+  },
+  {
+    "version": "0.0.2-SNAPSHOT",
+    "releaseDate": "2026-03-14",
+    "changes": [
+      "just version to test deploy"
+    ]
   }
 ]
 
