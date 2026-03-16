@@ -31,6 +31,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.GH_USER }}/feeder-server-app:latest
+            ghcr.io/${{ env.GH_USER }}/feeder-server-app:${{ github.sha }}
 
       - name: Deploy to Dokploy
         run: |
