@@ -12,12 +12,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pl.torun.alex.feeder.feeder_server.service.JwtService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -26,8 +28,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "/auth/login",
+            "/actuator/health",
+            "/actuator/info",
+            "/version",
+            "/version/history",
+            "/build-info"
+    );
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     private final JwtService jwtService;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        return PUBLIC_PATHS.stream().anyMatch(p -> pathMatcher.match(p, path));
+    }
 
     @Override
     protected void doFilterInternal(
