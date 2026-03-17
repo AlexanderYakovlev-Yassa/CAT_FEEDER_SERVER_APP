@@ -35,4 +35,4 @@ jobs:
 
       - name: Deploy to Dokploy
         run: |
-          curl -X POST ${{ secrets.DOKPLOY_WEBHOOK_URL }}
+          curl -X POST ${{ secrets.DOKPLOY_STAGING_WEBHOOK_URL }}
