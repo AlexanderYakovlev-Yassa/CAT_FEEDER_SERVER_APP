@@ -32,6 +32,10 @@ jobs:
           tags: |
             ghcr.io/${{ env.GH_USER }}/feeder-server-app:staging
             ghcr.io/${{ env.GH_USER }}/feeder-server-app:${{ github.sha }}
+          build-args: |
+            GIT_BRANCH=${{ github.ref_name }}
+            GIT_COMMIT=${{ github.sha }}
+            GIT_COMMIT_TIME=${{ github.event.head_commit.timestamp }}
 
       - name: Deploy to Dokploy
         run: |

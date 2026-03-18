@@ -5,14 +5,27 @@ FROM maven:3.9-eclipse-temurin-21-alpine AS build
 
 WORKDIR /app
 
+# Git metadata passed from CI as build arguments
+ARG GIT_BRANCH=unknown
+ARG GIT_COMMIT=unknown
+ARG GIT_COMMIT_TIME=unknown
+
 # Copy pom.xml and download dependencies (for better caching)
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source code and .git directory (needed by git-commit-id-maven-plugin)
+# Copy source code and build
 COPY src ./src
-COPY .git ./.git
 RUN mvn clean package -DskipTests
+
+# Overwrite git.properties with values from build args
+RUN mkdir -p target/classes && \
+    printf 'git.branch=%s\ngit.commit.id.abbrev=%s\ngit.commit.time=%s\n' \
+    "${GIT_BRANCH}" "${GIT_COMMIT}" "${GIT_COMMIT_TIME}" \
+    > target/classes/git.properties && \
+    # Re-package the JAR with the updated git.properties
+    cd target && \
+    jar uf feeder-server-*.jar -C classes git.properties
 
 # Stage 2: Create the runtime image
 FROM eclipse-temurin:21-jre-alpine
