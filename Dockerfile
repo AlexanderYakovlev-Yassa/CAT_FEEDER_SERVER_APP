@@ -9,8 +9,9 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source code and build
+# Copy source code and .git directory (needed by git-commit-id-maven-plugin)
 COPY src ./src
+COPY .git ./.git
 RUN mvn clean package -DskipTests
 
 # Stage 2: Create the runtime image
