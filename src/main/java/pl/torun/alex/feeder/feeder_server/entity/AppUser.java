@@ -1,16 +1,13 @@
 package pl.torun.alex.feeder.feeder_server.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "app_user")
@@ -32,4 +29,13 @@ public class AppUser {
 
     @Column(nullable = false)
     private boolean blocked;
+
+    // Users can manage many devices; devices can belong to many users — join table user_to_device.
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_to_device",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "device_id")
+    )
+    private Set<Device> devices = new HashSet<>();
 }

@@ -14,3 +14,9 @@ databaseChangeLog:
   - include:
       file: db.changelog-005-add-security-tables.yaml
       relativeToChangelogFile: true
+  - include:
+      file: db.changelog-006-create-user-to-device.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: db.changelog-007-migrate-user-to-device.yaml
+      relativeToChangelogFile: true

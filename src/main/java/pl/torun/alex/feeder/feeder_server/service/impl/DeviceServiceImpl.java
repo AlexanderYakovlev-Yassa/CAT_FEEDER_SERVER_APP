@@ -34,7 +34,7 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override public List<DeviceDto> findByUserId(Long userId) {
-        return repository.findByUserId(userId).stream()
+        return repository.findByUsersId(userId).stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -61,19 +61,32 @@ public class DeviceServiceImpl implements DeviceService {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
         Device entity = mapper.toEntity(dto);
-        entity.setUser(user);
-        return mapper.toDto(repository.save(entity));
+        // save device first (users mapping ignored by mapper)
+        Device saved = repository.save(entity);
+        // attach user and save again
+        saved.getUsers().add(user);
+        Device updated = repository.save(saved);
+        return mapper.toDto(updated);
     }
 
     @Override
     public void removeFromUser(Long userId, Long deviceId) {
         Device device = repository.findById(deviceId)
                 .orElseThrow(() -> new NoSuchElementException("Device not found: " + deviceId));
-        if (!device.getUser().getId().equals(userId)) {
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + userId));
+
+        if (!device.getUsers().contains(user)) {
             throw new IllegalArgumentException(
-                    "Device " + deviceId + " does not belong to user " + userId);
+                    "Device " + deviceId + " is not assigned to user " + userId);
         }
-        repository.delete(device);
+
+        device.getUsers().remove(user);
+        if (device.getUsers().isEmpty()) {
+            // if no users left, delete device
+            repository.delete(device);
+        } else {
+            repository.save(device);
+        }
     }
 }
-

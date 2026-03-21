@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-user-to-device
+      author: auto
+      changes:
+        - createTable:
+            tableName: user_to_device
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: device_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            columnNames: "user_id, device_id"
+            tableName: user_to_device
+            constraintName: pk_user_to_device
+        - addForeignKeyConstraint:
+            baseTableName: user_to_device
+            baseColumnNames: user_id
+            referencedTableName: app_user
+            referencedColumnNames: id
+            constraintName: fk_user_to_device_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: user_to_device
+            baseColumnNames: device_id
+            referencedTableName: device
+            referencedColumnNames: id
+            constraintName: fk_user_to_device_device
+            onDelete: CASCADE
+

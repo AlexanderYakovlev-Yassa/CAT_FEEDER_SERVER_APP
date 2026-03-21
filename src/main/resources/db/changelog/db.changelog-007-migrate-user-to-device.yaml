@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-migrate-user-to-device
+      author: auto
+      comments: >
+        Migrate existing device.user_id values into the new user_to_device join table,
+        then drop the foreign key and column from device. This preserves existing
+        ownership data when switching to a many-to-many relation.
+      preConditions:
+        onFail: MARK_RAN
+        preConditions:
+          - tableExists:
+              tableName: device
+          - tableExists:
+              tableName: user_to_device
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO user_to_device (user_id, device_id)
+              SELECT user_id, id FROM device WHERE user_id IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM user_to_device u2
+                  WHERE u2.user_id = device.user_id AND u2.device_id = device.id
+                );
+        - dropForeignKeyConstraint:
+            baseTableName: device
+            constraintName: fk_device_user
+        - dropColumn:
+            columnName: user_id
+            tableName: device
+

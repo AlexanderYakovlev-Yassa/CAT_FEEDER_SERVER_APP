@@ -3,6 +3,9 @@ package pl.torun.alex.feeder.feeder_server.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "device")
 @Getter
@@ -11,7 +14,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = "user")
+@ToString(exclude = "users")
 public class Device {
 
     @Id
@@ -24,9 +27,9 @@ public class Device {
     @Column(name = "serial_number", unique = true, nullable = false)
     private String serialNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private AppUser user;
+    // Previously a ManyToOne to AppUser; changed to bidirectional ManyToMany using join table user_to_device.
+    @ManyToMany(mappedBy = "devices", fetch = FetchType.LAZY)
+    private Set<AppUser> users = new HashSet<>();
 
     private Float feedConsumption; // in grams per second
 }
