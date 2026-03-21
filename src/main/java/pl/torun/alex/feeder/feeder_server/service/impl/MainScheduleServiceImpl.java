@@ -44,6 +44,13 @@ public class MainScheduleServiceImpl implements MainScheduleService {
         loadAndScheduleAll();
     }
 
+    @Override
+    public void reschedule() {
+        log.info("Rescheduling all feedings due to schedule change...");
+        cancelAllScheduledTasks();
+        loadAndScheduleAll();
+    }
+
     @Scheduled(cron = "0 0 0 * * ?") // Run at midnight every day
     public void rescheduleDaily() {
         log.info("Rescheduling all feedings for new day...");

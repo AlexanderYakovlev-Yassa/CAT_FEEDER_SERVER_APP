@@ -7,6 +7,7 @@ import pl.torun.alex.feeder.feeder_server.entity.DailyScheduler;
 import pl.torun.alex.feeder.feeder_server.mapper.DailySchedulerMapper;
 import pl.torun.alex.feeder.feeder_server.repository.DailySchedulerRepository;
 import pl.torun.alex.feeder.feeder_server.service.DailySchedulerService;
+import pl.torun.alex.feeder.feeder_server.service.MainScheduleService;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,7 @@ public class DailySchedulerServiceImpl implements DailySchedulerService {
 
     private final DailySchedulerRepository repository;
     private final DailySchedulerMapper mapper;
+    private final MainScheduleService mainScheduleService;
 
     @Override public List<DailySchedulerDto> findAll() {
         return repository.findAll().stream()
@@ -50,6 +52,7 @@ public class DailySchedulerServiceImpl implements DailySchedulerService {
     @Override public DailySchedulerDto create(DailySchedulerDto dto) {
         DailyScheduler entity = mapper.toEntity(dto);
         DailyScheduler saved = repository.save(entity);
+        mainScheduleService.reschedule();
         return mapper.toDto(saved);
     }
 
@@ -57,11 +60,13 @@ public class DailySchedulerServiceImpl implements DailySchedulerService {
         DailyScheduler entity = mapper.toEntity(dto);
         entity.setId(id);
         DailyScheduler saved = repository.save(entity);
+        mainScheduleService.reschedule();
         return mapper.toDto(saved);
     }
 
     @Override public void delete(Long id) {
         repository.deleteById(id);
+        mainScheduleService.reschedule();
     }
 }
 
