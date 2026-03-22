@@ -33,4 +33,13 @@ public class FeederClientServiceImpl implements FeederClientService {
         log.info("Sending schedule initialized notification to device {}", device.getSerialNumber());
         mqttService.publish(topic, payload, 1, false);
     }
+
+    @Override
+    public void sendCalibrationCommand(Device device, int durationMs) {
+        String topic = "catfeeder/" + device.getSerialNumber() + "/command";
+        String payload = String.format("FEED:%d", durationMs);
+
+        log.info("Sending calibration command to device {} - duration: {}ms", device.getSerialNumber(), durationMs);
+        mqttService.publish(topic, payload, 1, false);
+    }
 }
