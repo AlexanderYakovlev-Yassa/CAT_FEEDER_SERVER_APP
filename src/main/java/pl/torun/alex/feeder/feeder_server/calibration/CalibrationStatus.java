@@ -5,6 +5,7 @@ public enum CalibrationStatus {
     AWAITING_CONFIRMATION,
     ACCEPTED,
     DECLINED,
-    EXPIRED
+    EXPIRED,
+    CANCELLED
 }
 

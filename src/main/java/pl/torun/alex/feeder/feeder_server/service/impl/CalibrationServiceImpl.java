@@ -49,14 +49,15 @@ public class CalibrationServiceImpl implements CalibrationService {
     public StartCalibrationResponseDto startCalibration(StartCalibrationRequestDto request) {
         Device device = findDevice(request.getSerialNumber());
 
-        // Reject if an active session already exists for this device
-        boolean hasActive = sessions.values().stream()
-                .anyMatch(s -> s.getDeviceSerialNumber().equals(request.getSerialNumber())
-                        && isActive(s));
-        if (hasActive) {
-            throw new IllegalStateException(
-                    "A calibration session is already in progress for device: " + request.getSerialNumber());
-        }
+        // Auto-cancel any active session for this device before starting a new one
+        sessions.values().stream()
+                .filter(s -> s.getDeviceSerialNumber().equals(request.getSerialNumber()) && isActive(s))
+                .forEach(s -> {
+                    s.setStatus(CalibrationStatus.CANCELLED);
+                    s.touch();
+                    log.info("Auto-cancelled previous calibration session {} for device {}",
+                            s.getId(), request.getSerialNumber());
+                });
 
         CalibrationSession session = CalibrationSession.create(request.getSerialNumber());
         CalibrationAttempt first = session.addNextAttempt(totalAttempts);
@@ -172,6 +173,18 @@ public class CalibrationServiceImpl implements CalibrationService {
         }
         session.touch();
         // Session stays in memory briefly; expiry task will eventually remove it
+    }
+
+    @Override
+    public void cancelCalibration(Long sessionId) {
+        CalibrationSession session = requireSession(sessionId);
+        if (!isActive(session)) {
+            throw new IllegalStateException(
+                    "Session " + sessionId + " cannot be cancelled – current state: " + session.getStatus());
+        }
+        session.setStatus(CalibrationStatus.CANCELLED);
+        session.touch();
+        log.info("Calibration session {} cancelled by user", sessionId);
     }
 
     // -------------------------------------------------------------------------
