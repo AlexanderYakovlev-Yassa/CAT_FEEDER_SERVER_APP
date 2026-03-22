@@ -26,5 +26,11 @@ public interface CalibrationService {
      * On accept, updates the Device entity in the database.
      */
     void confirmCalibration(ConfirmCalibrationRequestDto request);
+
+    /**
+     * Cancels an active calibration session (IN_PROGRESS or AWAITING_CONFIRMATION).
+     * The device is left unchanged.
+     */
+    void cancelCalibration(Long sessionId);
 }
 

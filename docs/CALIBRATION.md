@@ -14,21 +14,24 @@ Calibration lets a user precisely measure how many grams per second the specific
 The calibration process works as follows:
 
 ```
-1. [POST] /calibration/start
+1. [POST]   /calibration/start
         ↓  server fires feeder for 2000 ms
         ↓  returns sessionId + attemptId
 
 2. User physically weighs the dispensed food
 
-3. [POST] /calibration/attempt   (submit weight)
+3. [POST]   /calibration/attempt   (submit weight)
         ↓  server fires feeder again (if attempts remain)
         ↓  repeat steps 2–3 until 5 attempts are complete
 
-4. [GET]  /calibration/{sessionId}/result
+4. [GET]    /calibration/{sessionId}/result
         ↓  shows calculated feedConsumption + standard deviation
 
-5. [POST] /calibration/confirm   (accept or decline)
+5. [POST]   /calibration/confirm   (accept or decline)
         ↓  on accept → device's feedConsumption is updated in DB
+
+✕ [DELETE] /calibration/{sessionId}   (cancel at any point)
+        ↓  aborts the session — device is left unchanged
 ```
 
 The session is **in-memory only** — it is not persisted to the database and will be lost on server restart or after a **30-minute inactivity timeout**.
@@ -41,7 +44,8 @@ The session is **in-memory only** — it is not persisted to the database and wi
 
 **`POST /calibration/start`**
 
-Starts a new calibration session for a device and immediately fires the first feeding burst.
+Starts a new calibration session for a device and immediately fires the first feeding burst.  
+If a session is **already active** for this device (`IN_PROGRESS` or `AWAITING_CONFIRMATION`), it is **automatically cancelled** before the new one begins — no manual cleanup needed.
 
 #### Request body
 
@@ -77,10 +81,9 @@ Starts a new calibration session for a device and immediately fires the first fe
 
 #### Error responses
 
-| Status | Reason                                                   |
-|--------|----------------------------------------------------------|
-| `400`  | A calibration session is already active for this device  |
-| `404`  | Device with the given serial number not found            |
+| Status | Reason                                        |
+|--------|-----------------------------------------------|
+| `404`  | Device with the given serial number not found |
 
 ---
 
@@ -227,6 +230,33 @@ No body.
 
 ---
 
+### 5. Cancel Calibration
+
+**`DELETE /calibration/{sessionId}`**
+
+Cancels an active calibration session at any point — whether still collecting attempts or awaiting confirmation.  
+The device's `feedConsumption` is **not** changed.  
+After cancellation a fresh session can be started immediately with `POST /calibration/start`.
+
+#### Path parameter
+
+| Param       | Description                |
+|-------------|----------------------------|
+| `sessionId` | ID from the start response |
+
+#### Response `204 No Content`
+
+No body.
+
+#### Error responses
+
+| Status | Reason                                                         |
+|--------|----------------------------------------------------------------|
+| `400`  | Session is already finished (`ACCEPTED`, `DECLINED`, `EXPIRED`, `CANCELLED`) |
+| `404`  | Session not found                                              |
+
+---
+
 ## Full Flow Example
 
 ```
@@ -264,15 +294,18 @@ POST /calibration/confirm
 IN_PROGRESS  →  AWAITING_CONFIRMATION  →  ACCEPTED
                                        →  DECLINED
 IN_PROGRESS  →  EXPIRED  (after 30 min of inactivity)
+IN_PROGRESS  →  CANCELLED
+AWAITING_CONFIRMATION  →  CANCELLED
 ```
 
-| State                  | Meaning                                                   |
-|------------------------|-----------------------------------------------------------|
-| `IN_PROGRESS`          | Collecting attempts; accepts `POST /attempt`              |
+| State                  | Meaning                                                      |
+|------------------------|--------------------------------------------------------------|
+| `IN_PROGRESS`          | Collecting attempts; accepts `POST /attempt`                 |
 | `AWAITING_CONFIRMATION`| All attempts done; accepts `GET /result` and `POST /confirm` |
-| `ACCEPTED`             | User confirmed; device updated                            |
-| `DECLINED`             | User declined; device unchanged                           |
-| `EXPIRED`              | Session timed out after 30 minutes                        |
+| `ACCEPTED`             | User confirmed; device updated                               |
+| `DECLINED`             | User declined; device unchanged                              |
+| `EXPIRED`              | Session timed out after 30 minutes                           |
+| `CANCELLED`            | User explicitly cancelled; device unchanged                  |
 
 > ⚠️ Sessions are **not persisted** — a server restart will clear all active sessions.  
 > If a session expires or the server restarts, start a fresh calibration with `POST /calibration/start`.
@@ -287,5 +320,5 @@ IN_PROGRESS  →  EXPIRED  (after 30 min of inactivity)
 4. **Display the result page** with `calculatedFeedConsumption`, `standardDeviation`, the list of `measurements`, and the `currentFeedConsumption` so the user can compare before deciding.
 5. **Low stdDev is good** — optionally show a quality indicator: stdDev < 0.1 g/s = ✅ Good, > 0.3 g/s = ⚠️ Inconsistent.
 6. **Handle session expiry** — if a `400` is returned mentioning expiry, redirect the user back to the start screen.
-7. **Disable the "calibrate" button** while a session is active for the same device.
+7. **Restarting calibration is safe** — pressing "calibrate" again while a session is already active will automatically cancel the previous session and start fresh. You may still want to show a confirmation dialog (*"This will cancel the current calibration. Continue?"*) to avoid accidental resets.
 

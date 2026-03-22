@@ -97,5 +97,23 @@ public class CalibrationController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    /**
+     * Cancel an active calibration session.
+     * Works from both IN_PROGRESS and AWAITING_CONFIRMATION states.
+     * The device is left unchanged.
+     */
+    @DeleteMapping("/{sessionId}")
+    @PreAuthorize("hasAuthority('manage-feeders')")
+    public ResponseEntity<?> cancel(@PathVariable Long sessionId) {
+        try {
+            calibrationService.cancelCalibration(sessionId);
+            return ResponseEntity.noContent().build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }
 
