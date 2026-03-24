@@ -24,7 +24,7 @@ public class FeedController {
      * @return 204 No Content on success, 404 Not Found if the device serial is unknown
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('manage-feeders')")
+    @PreAuthorize("hasAuthority('read-feeders')")
     public ResponseEntity<Void> feed(@Valid @RequestBody FeedRequestDto request) {
         try {
             feedService.feed(request);

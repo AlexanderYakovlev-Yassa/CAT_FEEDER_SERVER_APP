@@ -35,4 +35,3 @@ databaseChangeLog:
             referencedTableName: app_user
             referencedColumnNames: id
             onDelete: CASCADE
-
