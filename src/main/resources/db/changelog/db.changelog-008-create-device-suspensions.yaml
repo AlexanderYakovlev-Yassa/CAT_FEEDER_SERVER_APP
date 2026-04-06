@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-create-device-suspensions
+      author: auto
+      changes:
+        - createTable:
+            tableName: device_suspensions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              # Foreign key column pointing to the device that should be suspended
+              - column:
+                  name: device_id_fk
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              # Stored as TIMESTAMPTZ (timestamp with time zone) so PostgreSQL
+              # always keeps an absolute UTC moment – no local-time ambiguity.
+              - column:
+                  name: start_suspension
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_suspension
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: device_suspensions
+            baseColumnNames: device_id_fk
+            referencedTableName: device
+            referencedColumnNames: id
+            constraintName: fk_device_suspensions_device
+            onDelete: CASCADE
+
