@@ -12,9 +12,11 @@ import pl.torun.alex.feeder.feeder_server.entity.Device;
 import pl.torun.alex.feeder.feeder_server.entity.FeedingMetadata;
 import pl.torun.alex.feeder.feeder_server.repository.DailySchedulerRepository;
 import pl.torun.alex.feeder.feeder_server.repository.DeviceRepository;
+import pl.torun.alex.feeder.feeder_server.repository.DeviceSuspensionRepository;
 import pl.torun.alex.feeder.feeder_server.service.FeederClientService;
 import pl.torun.alex.feeder.feeder_server.service.MainScheduleService;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -33,6 +35,18 @@ public class MainScheduleServiceImpl implements MainScheduleService {
     private final DailySchedulerRepository dailySchedulerRepository;
     private final FeederClientService feederClientService;
     private final ThreadPoolTaskScheduler taskScheduler;
+
+    /**
+     * Injected directly to avoid a circular dependency.
+     *
+     * The cycle would be:
+     *   MainScheduleServiceImpl → DeviceSuspensionService
+     *   DeviceSuspensionServiceImpl → MainScheduleService   ← back to start
+     *
+     * The suspension check is a single DB query, so the repository is the right
+     * dependency here — the full service layer is not needed.
+     */
+    private final DeviceSuspensionRepository deviceSuspensionRepository;
 
     private final Map<Long, DailyScheduler> schedulerServiceMap = new HashMap<>();
     private final Map<String, ScheduledFuture<?>> scheduledTasks = new HashMap<>();
@@ -126,6 +140,17 @@ public class MainScheduleServiceImpl implements MainScheduleService {
 
     private void executeFeedingTask(Device device, FeedingMetadata metadata) {
         try {
+            // Check whether the device has an active suspension at the moment the task fires.
+            // Instant.now() is always UTC, matching how suspensions are stored,
+            // so this comparison is correct regardless of the server's local timezone.
+            // The repository is used directly here instead of the service to avoid a
+            // circular bean dependency (MainScheduleService ↔ DeviceSuspensionService).
+            if (deviceSuspensionRepository.existsActiveSuspension(device.getId(), Instant.now())) {
+                log.warn("Skipping feeding for device '{}' – device is currently suspended.",
+                    device.getName());
+                return;
+            }
+
             log.info("Executing scheduled feeding for device '{}' - amount: {}g",
                 device.getName(), metadata.getAmountInGrams());
             feederClientService.sendFeedingCommand(device, metadata.getAmountInGrams());
