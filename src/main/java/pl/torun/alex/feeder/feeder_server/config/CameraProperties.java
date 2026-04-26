@@ -49,6 +49,14 @@ public class CameraProperties {
      */
     private long reconnectIntervalMs = 30_000L;
 
+    /**
+     * Number of completed segments included in the live HLS playlist.
+     * Each segment is {@code segmentDurationSeconds} long, so this controls
+     * how far back a viewer can seek in the live stream.
+     * Default: 5 segments = 50 minutes of live buffer.
+     */
+    private int liveWindowSegments = 5;
+
     @Data
     public static class CameraConfig {
 
