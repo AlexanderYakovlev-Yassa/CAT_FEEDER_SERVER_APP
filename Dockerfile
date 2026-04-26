@@ -35,11 +35,17 @@ WORKDIR /app
 # Create a non-root user to run the application
 RUN addgroup -S spring && adduser -S spring -G spring
 
+# Install FFmpeg (required for IP camera recording via RTSP)
+RUN apk add --no-cache ffmpeg
+
 # Copy the built JAR from build stage
 COPY --from=build /app/target/feeder-server-*.jar app.jar
 
-# Change ownership to the non-root user
-RUN chown spring:spring app.jar
+# Create the default camera recordings directory and give the app user access.
+# The actual path is configured via CAM_0_STORAGE_PATH / camera.cameras[N].storage-path.
+# Mount a host volume or named volume over /var/cam-recordings in production.
+RUN mkdir -p /var/cam-recordings && \
+    chown -R spring:spring /app /var/cam-recordings
 
 # Switch to non-root user
 USER spring:spring

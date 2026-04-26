@@ -124,8 +124,15 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
       MQTT_USERNAME: ${MQTT_USERNAME:-}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      # Camera recording
+      CAM_0_RTSP_URL: ${CAM_0_RTSP_URL}
+      CAM_0_STORAGE_PATH: /var/cam-recordings/CatCamMaster
     ports:
       - "8080:8080"
+    volumes:
+      # Persist camera recordings on the host so they survive container restarts.
+      # Change the host path (left side) to wherever you want recordings stored.
+      - /var/cam-recordings:/var/cam-recordings
     networks:
       - feeder-network
     healthcheck:
@@ -192,6 +199,10 @@ DB_PASSWORD=your_secure_db_password_here
 # MQTT Configuration (optional if not using authentication)
 MQTT_USERNAME=your_mqtt_username
 MQTT_PASSWORD=your_mqtt_password
+
+# Camera Configuration
+CAM_0_RTSP_URL=rtsp://CatCamMaster:*Cat*112233*@192.168.100.37:554/live/ch0
+# CAM_FFMPEG_PATH=/usr/bin/ffmpeg   # override only if ffmpeg is not on PATH
 ```
 
 **Important:** Add `.env` to your `.gitignore` file to avoid committing sensitive data!
