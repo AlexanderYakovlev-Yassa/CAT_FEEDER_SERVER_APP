@@ -61,6 +61,15 @@ services:
       MQTT_USERNAME: alex
       MQTT_PASSWORD: 123
       MQTT_PERSISTENCE_DIR: /app/mqtt-persistence
+      # Camera — ffmpeg binary path inside the container.
+      # Override CAM_FFMPEG_PATH if ffmpeg is not on PATH in your image.
+      CAM_FFMPEG_PATH: ffmpeg
+      CAM_RECONNECT_INTERVAL_MS: 30000
+    volumes:
+      # Persistent storage for MPEG-TS camera segments.
+      # Camera storagePath values in the DB should start with /recordings/,
+      # e.g. /recordings/CatCamMaster
+      - ./volumes/camera-recordings:/recordings
     ports:
       - "8080:8080"
     networks:
@@ -75,3 +84,11 @@ services:
 networks:
   cat-feeder-net:
     driver: bridge
+
+volumes:
+  # Named volume for camera MPEG-TS segment files.
+  # Docker manages the actual host path; use `docker volume inspect` to find it,
+  # or switch to a bind-mount (e.g. ./volumes/recordings:/recordings) if you
+  # need direct host access to the files.
+  camera-recordings:
+
