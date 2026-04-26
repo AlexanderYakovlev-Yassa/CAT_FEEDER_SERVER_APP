@@ -7,7 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import pl.torun.alex.feeder.feeder_server.config.CameraProperties;
-import pl.torun.alex.feeder.feeder_server.config.CameraProperties.CameraConfig;
+import pl.torun.alex.feeder.feeder_server.entity.Camera;
+import pl.torun.alex.feeder.feeder_server.repository.CameraRepository;
 import pl.torun.alex.feeder.feeder_server.service.CameraRecordingService;
 
 import java.io.IOException;
@@ -52,6 +53,7 @@ import java.util.stream.Stream;
 public class CameraRecordingServiceImpl implements CameraRecordingService {
 
     private final CameraProperties properties;
+    private final CameraRepository cameraRepository;
 
     /** Active FFmpeg process keyed by camera name. */
     private final Map<String, Process> activeProcesses = new ConcurrentHashMap<>();
@@ -80,9 +82,7 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
                     properties.getFfmpegPath());
         }
 
-        properties.getCameras().stream()
-                .filter(CameraConfig::isAutoStart)
-                .forEach(cam -> {
+        cameraRepository.findByAutoStartTrue().forEach(cam -> {
                     try {
                         startRecording(cam.getName());
                     } catch (Exception e) {
@@ -120,7 +120,7 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
             return;
         }
 
-        CameraConfig cam = findCamera(cameraName);
+        Camera cam = findCamera(cameraName);
 
         try {
             Path storageDir = Path.of(cam.getStoragePath());
@@ -189,9 +189,9 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
 
     @Override
     public Map<String, Boolean> getRecordingStatus() {
-        return properties.getCameras().stream()
+        return cameraRepository.findAll().stream()
                 .collect(Collectors.toMap(
-                        CameraConfig::getName,
+                        Camera::getName,
                         cam -> {
                             Process p = activeProcesses.get(cam.getName());
                             return p != null && p.isAlive();
@@ -252,36 +252,32 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
     @Scheduled(fixedDelayString = "${camera.reconnect-interval-ms:30000}")
     public synchronized void checkAndRestartDeadProcesses() {
         // Re-check whether the binary has become available since last tick.
-        // If it has, clear all suppressed cameras so they get a fresh attempt.
         if (!binaryMissingCameras.isEmpty() && isFfmpegAvailable()) {
             log.info("FFmpeg binary '{}' is now available – resuming reconnect attempts for: {}",
                     properties.getFfmpegPath(), binaryMissingCameras);
             binaryMissingCameras.clear();
         }
 
-        properties.getCameras().stream()
-                .filter(CameraConfig::isAutoStart)
-                .forEach(cam -> {
-                    if (binaryMissingCameras.contains(cam.getName())) {
-                        log.debug("Skipping reconnect for camera '{}' – FFmpeg binary not available.",
-                                cam.getName());
-                        return;
-                    }
+        cameraRepository.findByAutoStartTrue().forEach(cam -> {
+            if (binaryMissingCameras.contains(cam.getName())) {
+                log.debug("Skipping reconnect for camera '{}' – FFmpeg binary not available.",
+                        cam.getName());
+                return;
+            }
 
-                    Process p = activeProcesses.get(cam.getName());
-                    if (p == null || !p.isAlive()) {
-                        log.warn("FFmpeg process for camera '{}' is not running – reconnecting…",
-                                cam.getName());
-                        activeProcesses.remove(cam.getName());
-                        try {
-                            startRecording(cam.getName());
-                        } catch (Exception e) {
-                            // startRecording already logged the root cause; just note the retry.
-                            log.warn("Reconnect attempt for camera '{}' failed – will retry in {} ms.",
-                                    cam.getName(), properties.getReconnectIntervalMs());
-                        }
-                    }
-                });
+            Process p = activeProcesses.get(cam.getName());
+            if (p == null || !p.isAlive()) {
+                log.warn("FFmpeg process for camera '{}' is not running – reconnecting…",
+                        cam.getName());
+                activeProcesses.remove(cam.getName());
+                try {
+                    startRecording(cam.getName());
+                } catch (Exception e) {
+                    log.warn("Reconnect attempt for camera '{}' failed – will retry in {} ms.",
+                            cam.getName(), properties.getReconnectIntervalMs());
+                }
+            }
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -314,15 +310,13 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
         return msg != null && (msg.contains("No such file or directory") || msg.contains("error=2"));
     }
 
-    private CameraConfig findCamera(String name) {
-        return properties.getCameras().stream()
-                .filter(c -> c.getName().equals(name))
-                .findFirst()
+    private Camera findCamera(String name) {
+        return cameraRepository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown camera: " + name));
     }
 
     private List<Path> collectAllSegments() {
-        return properties.getCameras().stream()
+        return cameraRepository.findAll().stream()
                 .flatMap(cam -> {
                     Path dir = Path.of(cam.getStoragePath());
                     if (!Files.exists(dir)) return Stream.empty();

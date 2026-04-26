@@ -23,3 +23,9 @@ databaseChangeLog:
   - include:
       file: db.changelog-008-create-device-suspensions.yaml
       relativeToChangelogFile: true
+  - include:
+      file: db.changelog-009-create-camera.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: db.changelog-010-create-user-to-camera.yaml
+      relativeToChangelogFile: true

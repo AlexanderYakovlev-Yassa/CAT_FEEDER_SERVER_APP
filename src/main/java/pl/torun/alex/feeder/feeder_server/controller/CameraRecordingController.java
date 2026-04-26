@@ -17,8 +17,7 @@ import java.util.Map;
  * GET  /camera/status        – recording state of all configured cameras
  * </pre>
  *
- * The {@code name} path variable must match the {@code camera.cameras[N].name}
- * value in application properties (e.g. {@code CatCamMaster}).
+ * The {@code name} path variable must match the {@code name} column in the {@code camera} table.
  */
 @RestController
 @RequestMapping("/camera")

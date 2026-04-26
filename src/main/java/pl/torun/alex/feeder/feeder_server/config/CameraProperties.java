@@ -4,26 +4,16 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Typed configuration for all IP cameras.
- *
- * Each camera entry maps to one FFmpeg process that continuously writes
- * MPEG-TS segment files to its own storage directory.
- *
- * Adding a second camera in the future requires only a new
- * camera.cameras[N].* block in the active application properties file —
- * no code changes needed.
+ * Typed configuration for FFmpeg recording behaviour.
+ * Camera instances (name, RTSP URL, storage path) are managed via the
+ * {@code camera} DB table — see the {@code Camera} entity.
  */
 @Configuration
 @ConfigurationProperties(prefix = "camera")
 @Data
 public class CameraProperties {
 
-    /** List of cameras. Index order does not matter. */
-    private List<CameraConfig> cameras = new ArrayList<>();
 
     /**
      * Path to the FFmpeg executable. Use the plain name {@code ffmpeg} when it
@@ -56,25 +46,7 @@ public class CameraProperties {
      * Default: 5 segments = 50 minutes of live buffer.
      */
     private int liveWindowSegments = 5;
-
-    @Data
-    public static class CameraConfig {
-
-        /** Unique logical name — used in file names and REST API paths. */
-        private String name;
-
-        /** Full RTSP URL including credentials. */
-        private String rtspUrl;
-
-        /** Absolute path to the directory where .ts segment files will be written. */
-        private String storagePath;
-
-        /**
-         * When true the recording starts automatically on application startup
-         * and is restarted automatically whenever the FFmpeg process dies.
-         */
-        private boolean autoStart = false;
-    }
 }
+
 
 

@@ -7,12 +7,15 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.torun.alex.feeder.feeder_server.dto.RecordingDayDto;
 import pl.torun.alex.feeder.feeder_server.dto.SegmentInfoDto;
+import pl.torun.alex.feeder.feeder_server.service.CameraService;
 import pl.torun.alex.feeder.feeder_server.service.CameraStreamService;
 
 import java.nio.file.Path;
@@ -65,6 +68,7 @@ public class CameraStreamController {
             MediaType.parseMediaType("application/vnd.apple.mpegurl");
 
     private final CameraStreamService cameraStreamService;
+    private final CameraService cameraService;
 
     // -------------------------------------------------------------------------
     // Live playlist
@@ -84,8 +88,12 @@ public class CameraStreamController {
     @PreAuthorize("hasAuthority('read-schedule')")
     public ResponseEntity<String> livePlaylist(
             @PathVariable String name,
+            @AuthenticationPrincipal String username,
             HttpServletRequest request) {
 
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         String playlist = cameraStreamService.generateLivePlaylist(name, contextPath(request));
         return ResponseEntity.ok()
                 .contentType(MEDIA_TYPE_M3U8)
@@ -111,8 +119,12 @@ public class CameraStreamController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime to,
+            @AuthenticationPrincipal String username,
             HttpServletRequest request) {
 
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         String playlist = cameraStreamService.generateVodPlaylist(
                 name, date, from, to, contextPath(request));
 
@@ -142,8 +154,12 @@ public class CameraStreamController {
     @PreAuthorize("hasAuthority('read-schedule')")
     public ResponseEntity<Resource> segment(
             @PathVariable String name,
-            @PathVariable String filename) {
+            @PathVariable String filename,
+            @AuthenticationPrincipal String username) {
 
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         Path segmentPath = cameraStreamService.resolveSegment(name, filename);
         Resource resource = new FileSystemResource(segmentPath);
 
@@ -165,21 +181,24 @@ public class CameraStreamController {
      */
     @GetMapping("/{name}/recordings")
     @PreAuthorize("hasAuthority('read-schedule')")
-    public ResponseEntity<List<RecordingDayDto>> recordingDays(@PathVariable String name) {
+    public ResponseEntity<List<RecordingDayDto>> recordingDays(
+            @PathVariable String name,
+            @AuthenticationPrincipal String username) {
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(cameraStreamService.listRecordingDays(name));
     }
 
-    /**
-     * Returns the ordered segment list for a single recording day.
-     *
-     * @param date ISO date, e.g. {@code 2026-04-26}
-     */
     @GetMapping("/{name}/recordings/{date}")
     @PreAuthorize("hasAuthority('read-schedule')")
     public ResponseEntity<List<SegmentInfoDto>> recordingDay(
             @PathVariable String name,
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @AuthenticationPrincipal String username) {
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(cameraStreamService.listSegmentsForDay(name, date));
     }
 

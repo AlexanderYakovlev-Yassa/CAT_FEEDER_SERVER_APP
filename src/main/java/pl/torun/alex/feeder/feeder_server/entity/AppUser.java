@@ -38,4 +38,13 @@ public class AppUser {
             inverseJoinColumns = @JoinColumn(name = "device_id")
     )
     private Set<Device> devices = new HashSet<>();
+
+    // Users can access many cameras; cameras can be accessed by many users — join table user_to_camera.
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_to_camera",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "camera_id")
+    )
+    private Set<Camera> cameras = new HashSet<>();
 }

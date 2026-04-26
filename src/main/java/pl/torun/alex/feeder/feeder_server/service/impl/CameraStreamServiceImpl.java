@@ -4,7 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import pl.torun.alex.feeder.feeder_server.config.CameraProperties;
-import pl.torun.alex.feeder.feeder_server.config.CameraProperties.CameraConfig;
+import pl.torun.alex.feeder.feeder_server.entity.Camera;
+import pl.torun.alex.feeder.feeder_server.repository.CameraRepository;
 import pl.torun.alex.feeder.feeder_server.dto.RecordingDayDto;
 import pl.torun.alex.feeder.feeder_server.dto.SegmentInfoDto;
 import pl.torun.alex.feeder.feeder_server.service.CameraStreamService;
@@ -57,6 +58,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
             Pattern.compile("^(.+)_(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})\\.ts$");
 
     private final CameraProperties properties;
+    private final CameraRepository cameraRepository;
 
     // -------------------------------------------------------------------------
     // HLS playlists
@@ -102,7 +104,6 @@ public class CameraStreamServiceImpl implements CameraStreamService {
 
     @Override
     public Path resolveSegment(String cameraName, String filename) {
-        // Reject any filename containing a path separator or suspicious sequences.
         if (filename.contains("/") || filename.contains("\\") || filename.contains("..")) {
             throw new IllegalArgumentException("Invalid segment filename: " + filename);
         }
@@ -110,7 +111,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
             throw new IllegalArgumentException("Filename does not match expected segment pattern: " + filename);
         }
 
-        CameraConfig cam = findCamera(cameraName);
+        Camera cam = findCamera(cameraName);
         Path storageDir = Path.of(cam.getStoragePath()).toAbsolutePath().normalize();
         Path segmentPath = storageDir.resolve(filename).normalize();
 
@@ -166,7 +167,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
      * sorted ascending by their embedded start time.
      */
     private List<SegmentInfoDto> listSegmentsSorted(String cameraName) {
-        CameraConfig cam = findCamera(cameraName);
+        Camera cam = findCamera(cameraName);
         Path storageDir = Path.of(cam.getStoragePath());
 
         if (!Files.exists(storageDir)) {
@@ -253,10 +254,8 @@ public class CameraStreamServiceImpl implements CameraStreamService {
         return sb.toString();
     }
 
-    private CameraConfig findCamera(String name) {
-        return properties.getCameras().stream()
-                .filter(c -> c.getName().equals(name))
-                .findFirst()
+    private Camera findCamera(String name) {
+        return cameraRepository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown camera: " + name));
     }
 }
