@@ -40,6 +40,13 @@ public class CameraProperties {
     private long reconnectIntervalMs = 30_000L;
 
     /**
+     * Socket timeout for FFmpeg in microseconds (for the -stimeout parameter).
+     * If no data is received from the camera for this duration, FFmpeg will exit.
+     * Default: 10000000 (10 seconds).
+     */
+    private long ffmpegStimeoutUs = 10_000_000L;
+
+    /**
      * Number of completed segments included in the live HLS playlist.
      * Each segment is {@code segmentDurationSeconds} long, so this controls
      * how far back a viewer can seek in the live stream.
@@ -47,6 +54,3 @@ public class CameraProperties {
      */
     private int liveWindowSegments = 5;
 }
-
-
-
