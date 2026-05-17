@@ -26,8 +26,13 @@ import java.util.stream.Stream;
  * Manages per-camera FFmpeg recording processes.
  *
  * <p>Each camera runs its own {@code ffmpeg} process using the segment muxer,
- * which automatically splits the RTSP stream into fixed-length MPEG-TS files
- * without any re-encoding ({@code -c copy}).
+ * which automatically splits the RTSP stream into fixed-length MPEG-TS files.
+ * By default ({@code camera.transcode-for-browser=true}) the stream is
+ * re-encoded to <b>H.264 video + AAC audio</b> so that hls.js can play the
+ * segments in any browser via Media Source Extensions.  Set
+ * {@code camera.transcode-for-browser=false} only when the camera already
+ * delivers an H.264 + AAC stream and you want to skip the CPU cost of
+ * re-encoding.
  * File names include the camera name, date and start time, e.g.:
  * {@code CatCamMaster_2026-04-26_14-30-00.ts}</p>
  *
@@ -140,20 +145,44 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
             // than the general `-stimeout` (in microseconds).
             long timeoutSeconds = properties.getFfmpegStimeoutUs() / 1_000_000;
 
-            List<String> command = List.of(
+            // Build the codec arguments.
+            // transcodeForBrowser=true (default): re-encode to H.264 + AAC so that
+            // hls.js can play the segments in every browser via Media Source Extensions.
+            // transcodeForBrowser=false: pass-through copy – only safe when the camera
+            // already delivers H.264 + AAC; using copy with H.265/HEVC will produce
+            // bufferAddCodecError in the frontend player.
+            List<String> codecArgs;
+            if (properties.isTranscodeForBrowser()) {
+                codecArgs = List.of(
+                        "-c:v", "libx264",
+                        "-profile:v", "main",
+                        "-pix_fmt", "yuv420p",
+                        "-crf", String.valueOf(properties.getTranscodeCrf()),
+                        "-preset", "veryfast",
+                        "-c:a", "aac"
+                );
+                log.debug("Using H.264+AAC transcode for camera '{}'", cameraName);
+            } else {
+                codecArgs = List.of("-c", "copy");
+                log.debug("Using copy-through for camera '{}' (transcodeForBrowser=false)", cameraName);
+            }
+
+            List<String> command = new java.util.ArrayList<>(List.of(
                     properties.getFfmpegPath(),
                     "-y",                          // overwrite output files without prompting
                     "-rtsp_transport", "tcp",       // TCP is more reliable for home cams
                     "-timeout", String.valueOf(timeoutSeconds),
-                    "-i", cam.getRtspUrl(),
-                    "-c", "copy",                  // no transcoding – stream saved exactly as received
+                    "-i", cam.getRtspUrl()
+            ));
+            command.addAll(codecArgs);
+            command.addAll(List.of(
                     "-f", "segment",
                     "-segment_time", String.valueOf(properties.getSegmentDurationSeconds()),
                     "-segment_format", "mpegts",
                     "-strftime", "1",              // enable time format substitution in filename
                     "-reset_timestamps", "1",      // start each segment's timestamps from 0
                     outputPattern
-            );
+            ));
 
             log.debug("FFmpeg command: {}", String.join(" ", command));
 

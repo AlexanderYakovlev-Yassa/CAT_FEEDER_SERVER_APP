@@ -53,4 +53,22 @@ public class CameraProperties {
      * Default: 5 segments = 50 minutes of live buffer.
      */
     private int liveWindowSegments = 5;
+
+    /**
+     * When {@code true} (default), FFmpeg transcodes video to H.264 (libx264)
+     * and audio to AAC so that the resulting HLS segments are playable in any
+     * browser via Media Source Extensions.
+     *
+     * <p>Set to {@code false} only if the camera already delivers an H.264 + AAC
+     * stream and you want to skip the CPU cost of re-encoding.  Using copy-through
+     * with an H.265 / HEVC source will cause {@code bufferAddCodecError} in hls.js.</p>
+     */
+    private boolean transcodeForBrowser = true;
+
+    /**
+     * CRF (Constant Rate Factor) value passed to libx264 when
+     * {@code transcodeForBrowser=true}.  Lower = higher quality / larger files.
+     * Default: 23 (libx264 default).
+     */
+    private int transcodeCrf = 23;
 }

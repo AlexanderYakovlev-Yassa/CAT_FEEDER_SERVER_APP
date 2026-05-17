@@ -102,7 +102,7 @@ Content-Type: application/json
 }
 ```
 **Response:** `201 Created` — `CameraDto` (with `id`)  
-`Location` header: `/feeder-service/api/cameras/{id}`
+`Location` header: `/api/cameras/{id}`
 
 ---
 
@@ -214,6 +214,8 @@ Returns an **HLS EVENT playlist** (sliding window of the most-recently completed
 
 The response body is a standard M3U8 playlist; segment URLs inside it are absolute paths pointing to the [segment endpoint](#segment-file-serving).
 
+**Response:** `200 OK` — M3U8 playlist | `403 Forbidden` (user has `read-schedule` but is not assigned to this camera)
+
 ---
 
 ## VOD (Historical Playback)
@@ -230,7 +232,7 @@ GET /camera/{name}/vod/playlist.m3u8?date=2026-04-26[&from=14:00&to=16:00]
 | `from`      | ❌        | `HH:mm` | Inclusive start time filter (default: 00:00)  |
 | `to`        | ❌        | `HH:mm` | Exclusive end time filter (default: end of day) |
 
-**Response:** `200 OK` — closed HLS VOD M3U8 playlist  
+**Response:** `200 OK` — closed HLS VOD M3U8 playlist | `403 Forbidden` (user not assigned to this camera)  
 `Cache-Control: public, max-age=60`
 
 ---
@@ -248,7 +250,7 @@ GET /camera/{name}/segments/{filename}
 | `name`     | `CatCamMaster`                             |
 | `filename` | `CatCamMaster_2026-04-26_14-30-00.ts`      |
 
-**Response:** `200 OK` — `video/MP2T` binary stream  
+**Response:** `200 OK` — `video/MP2T` binary stream | `403 Forbidden` (user not assigned to this camera)  
 Supports **HTTP Range requests** — the player can seek within a segment.  
 `Cache-Control: public, max-age=3600`
 
@@ -265,7 +267,7 @@ Supports **HTTP Range requests** — the player can seek within a segment.
 GET /camera/{name}/recordings
 ```
 Returns all days that have at least one recording, newest first.  
-**Response:** `200 OK` — `RecordingDayDto[]`
+**Response:** `200 OK` — `RecordingDayDto[]` | `403 Forbidden` (user not assigned to this camera)
 
 ---
 
@@ -274,7 +276,7 @@ Returns all days that have at least one recording, newest first.
 GET /camera/{name}/recordings/{date}
 ```
 `date` format: `yyyy-MM-dd` (e.g. `2026-04-26`)  
-**Response:** `200 OK` — `SegmentInfoDto[]` (ascending by start time)
+**Response:** `200 OK` — `SegmentInfoDto[]` (ascending by start time) | `403 Forbidden` (user not assigned to this camera)
 
 ---
 
