@@ -42,6 +42,10 @@ import java.util.List;
  *     Streams a single .ts segment as video/MP2T.
  *     Supports Range requests so the player can seek inside a segment.
  *
+ * GET /camera/{name}/segments/{filename}/download
+ *     Downloads a single .ts segment as an attachment (browser Save-As).
+ *     Useful when the camera records in H.265/HEVC – open the file in VLC/mpv.
+ *
  * ── Recording browser ────────────────────────────────────────────────────────
  * GET /camera/{name}/recordings
  *     Returns a list of days that have recordings, newest first.
@@ -167,6 +171,36 @@ public class CameraStreamController {
                 .contentType(MEDIA_TYPE_MPEGTS)
                 .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
+                .body(resource);
+    }
+
+    /**
+     * Downloads a single .ts segment as an attachment (triggers browser Save-As dialog).
+     *
+     * <p>Useful when the camera records in H.265/HEVC or another codec that browsers
+     * cannot play directly via HLS.  The user downloads the file and opens it in
+     * VLC, mpv, or any other desktop player.</p>
+     *
+     * @param name     camera name
+     * @param filename segment filename, e.g. {@code CatCamMaster_2026-04-26_14-30-00.ts}
+     */
+    @GetMapping("/{name}/segments/{filename}/download")
+    @PreAuthorize("hasAuthority('read-schedule')")
+    public ResponseEntity<Resource> downloadSegment(
+            @PathVariable String name,
+            @PathVariable String filename,
+            @AuthenticationPrincipal String username) {
+
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Path segmentPath = cameraStreamService.resolveSegment(name, filename);
+        Resource resource = new FileSystemResource(segmentPath);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                 .body(resource);
     }
 

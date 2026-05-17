@@ -14,9 +14,10 @@ All requests require a **Bearer JWT** token in the `Authorization` header.
 5. [Live HLS Stream](#live-hls-stream)
 6. [VOD (Historical Playback)](#vod-historical-playback)
 7. [Segment File Serving](#segment-file-serving)
-8. [Recording Browser](#recording-browser)
-9. [Required Authorities](#required-authorities)
-10. [React / hls.js Quick-Start](#react--hlsjs-quick-start)
+8. [Segment Download](#segment-download)
+9. [Recording Browser](#recording-browser)
+10. [Required Authorities](#required-authorities)
+11. [React / hls.js Quick-Start](#react--hlsjs-quick-start)
 
 ---
 
@@ -164,7 +165,14 @@ DELETE /users/{userId}/cameras/{cameraId}
 
 > **Required authority:** `manage-schedule`
 
-The server uses **FFmpeg** to record the RTSP stream into `.ts` segment files.
+The server uses **FFmpeg** to record the RTSP stream into `.ts` segment files.  
+Segments are stored **without re-encoding** (`-c copy`) — the original camera codec
+(e.g. H.265/HEVC) is preserved as-is, which keeps CPU usage minimal.
+
+> **Browser playback note:** because segments may contain H.265 or other codecs
+> that browsers cannot decode natively, the live/VOD HLS player may not work for
+> all cameras.  Use the [Segment Download](#segment-download) API to download
+> files and open them in a desktop player (VLC, mpv, etc.) instead.
 
 ### Start recording
 ```
@@ -258,6 +266,32 @@ Supports **HTTP Range requests** — the player can seek within a segment.
 
 ---
 
+## Segment Download
+
+> **Required authority:** `read-schedule`
+
+```
+GET /camera/{name}/segments/{filename}/download
+```
+
+| Path param | Example                                    |
+|------------|--------------------------------------------|
+| `name`     | `CatCamMaster`                             |
+| `filename` | `CatCamMaster_2026-04-26_14-30-00.ts`      |
+
+Returns the `.ts` segment file as an **attachment** (`Content-Disposition: attachment`),
+triggering a browser Save-As dialog.
+
+**Response:** `200 OK` — `application/octet-stream` binary | `403 Forbidden` (user not assigned to this camera)  
+Supports **HTTP Range requests**.
+
+**Typical workflow:**
+1. Call [`GET /camera/{name}/recordings/{date}`](#list-segments-for-a-day) to get the list of segments.
+2. For each segment you want, call this download endpoint.
+3. Open the downloaded `.ts` file in **VLC**, **mpv**, or any desktop player — they all handle H.265/HEVC natively.
+
+---
+
 ## Recording Browser
 
 > **Required authority:** `read-schedule`
@@ -345,6 +379,25 @@ const vodUrl =
 // Use the same hls.js setup above but with vodUrl instead.
 ```
 
+### Download a segment
+
+```ts
+function downloadSegment(cameraName: string, filename: string, token: string) {
+  const url = `${BASE}/camera/${cameraName}/segments/${encodeURIComponent(filename)}/download`;
+
+  // Programmatic download — creates a temporary <a> and clicks it
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((res) => res.blob())
+    .then((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+}
+```
+
 ### Fetch recording days
 
 ```ts
@@ -366,4 +419,3 @@ async function getStatus(token: string) {
   return res.json(); // { [cameraName: string]: boolean }
 }
 ```
-

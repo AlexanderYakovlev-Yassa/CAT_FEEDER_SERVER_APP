@@ -63,7 +63,7 @@ public class CameraProperties {
      * stream and you want to skip the CPU cost of re-encoding.  Using copy-through
      * with an H.265 / HEVC source will cause {@code bufferAddCodecError} in hls.js.</p>
      */
-    private boolean transcodeForBrowser = true;
+    private boolean transcodeForBrowser = false;
 
     /**
      * CRF (Constant Rate Factor) value passed to libx264 when
