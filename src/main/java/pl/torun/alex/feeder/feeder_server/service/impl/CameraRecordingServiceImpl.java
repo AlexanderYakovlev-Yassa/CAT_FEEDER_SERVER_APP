@@ -146,11 +146,11 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
             long timeoutSeconds = properties.getFfmpegStimeoutUs() / 1_000_000;
 
             // Build the codec arguments.
-            // transcodeForBrowser=true (default): re-encode to H.264 + AAC so that
-            // hls.js can play the segments in every browser via Media Source Extensions.
-            // transcodeForBrowser=false: pass-through copy – only safe when the camera
-            // already delivers H.264 + AAC; using copy with H.265/HEVC will produce
-            // bufferAddCodecError in the frontend player.
+            // transcodeForBrowser=false (default): pass-through copy – preserves the original
+            // camera codec (e.g. H.265/HEVC) at zero CPU cost. Users download segments and
+            // open them in VLC/mpv which supports all codecs.
+            // transcodeForBrowser=true: re-encode to H.264 + AAC for browser HLS playback,
+            // but costs significant CPU on re-encoding.
             List<String> codecArgs;
             if (properties.isTranscodeForBrowser()) {
                 codecArgs = List.of(
