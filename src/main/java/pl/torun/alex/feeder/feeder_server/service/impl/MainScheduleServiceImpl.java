@@ -124,7 +124,7 @@ public class MainScheduleServiceImpl implements MainScheduleService {
             String taskKey = device.getId() + ":" + metadata.getFeedingTime();
 
             ScheduledFuture<?> scheduledTask = taskScheduler.schedule(
-                () -> executeFeedingTask(device, metadata),
+                () -> executeFeedingTask(device, metadata, scheduledInstant),
                 scheduledInstant
             );
 
@@ -138,16 +138,16 @@ public class MainScheduleServiceImpl implements MainScheduleService {
         }
     }
 
-    private void executeFeedingTask(Device device, FeedingMetadata metadata) {
+    void executeFeedingTask(Device device, FeedingMetadata metadata, Instant scheduledTime) {
         try {
-            // Check whether the device has an active suspension at the moment the task fires.
-            // Instant.now() is always UTC, matching how suspensions are stored,
-            // so this comparison is correct regardless of the server's local timezone.
+            // Check whether the device has an active suspension at the scheduled moment of the task.
+            // Using the scheduled time instead of Instant.now() prevents scheduler latency/lag
+            // from causing active suspensions (especially zero-length/instant suspensions) to be missed.
             // The repository is used directly here instead of the service to avoid a
             // circular bean dependency (MainScheduleService ↔ DeviceSuspensionService).
-            if (deviceSuspensionRepository.existsActiveSuspension(device.getId(), Instant.now())) {
-                log.warn("Skipping feeding for device '{}' – device is currently suspended.",
-                    device.getName());
+            if (deviceSuspensionRepository.existsActiveSuspension(device.getId(), scheduledTime)) {
+                log.warn("Skipping feeding for device '{}' – device is currently suspended at scheduled time {}.",
+                    device.getName(), scheduledTime);
                 return;
             }
 
