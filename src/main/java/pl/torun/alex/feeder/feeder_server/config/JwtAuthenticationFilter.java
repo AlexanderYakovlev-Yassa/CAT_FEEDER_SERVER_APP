@@ -30,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final Set<String> PUBLIC_PATHS = Set.of(
             "/error",
+            "/audio/live-voice",
             "/auth/login",
             "/actuator/health",
             "/actuator/info",

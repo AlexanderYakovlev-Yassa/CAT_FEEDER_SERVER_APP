@@ -214,6 +214,11 @@ public class AudioServiceImpl implements AudioService {
         customAudioRepository.deleteById(id);
     }
 
+    @Override
+    public byte[] getWakeUpChime() {
+        return wakeUpChimePcm;
+    }
+
     /**
      * Транскодирование входящих аудиоданных любого формата в стандартный PCM 44.1kHz Stereo s16le через FFmpeg
      */

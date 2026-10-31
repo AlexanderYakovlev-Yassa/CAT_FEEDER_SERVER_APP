@@ -15,4 +15,6 @@ public interface AudioService {
     AudioPresetDto saveCustomPreset(String name, byte[] audioData, String contentType);
 
     void deleteCustomPreset(Long id);
+
+    byte[] getWakeUpChime();
 }
