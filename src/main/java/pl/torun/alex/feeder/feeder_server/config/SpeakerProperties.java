@@ -16,4 +16,6 @@ public class SpeakerProperties {
     private int port = 5000;
     private int timeoutMs = 5000;
     private String ffmpegPath = "ffmpeg";
+    private boolean chimeEnabled = true;
+    private double chimeVolume = 0.25;
 }

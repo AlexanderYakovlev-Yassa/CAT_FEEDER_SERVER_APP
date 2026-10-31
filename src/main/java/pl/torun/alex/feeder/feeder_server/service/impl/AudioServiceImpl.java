@@ -1,5 +1,6 @@
 package pl.torun.alex.feeder.feeder_server.service.impl;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -11,10 +12,7 @@ import pl.torun.alex.feeder.feeder_server.entity.CustomAudio;
 import pl.torun.alex.feeder.feeder_server.repository.CustomAudioRepository;
 import pl.torun.alex.feeder.feeder_server.service.AudioService;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -30,8 +28,20 @@ public class AudioServiceImpl implements AudioService {
     private final ResourceLoader resourceLoader;
     private final CustomAudioRepository customAudioRepository;
 
+    private byte[] wakeUpChimePcm;
+
     private static final int BYTES_PER_SECOND = 44100 * 2 * 2; // 176,400 B/s (44.1 kHz, 16-bit, Stereo)
     private static final int CHUNK_SIZE = 4096;
+
+    @PostConstruct
+    public void initChime() {
+        try {
+            this.wakeUpChimePcm = generateWakeUpChime();
+            log.info("Initialized speaker wake-up chime ({} bytes, ~0.5s)", wakeUpChimePcm.length);
+        } catch (Exception e) {
+            log.error("Failed to generate wake-up chime: {}", e.getMessage(), e);
+        }
+    }
 
     private static final List<AudioPresetDto> PRESETS = Arrays.asList(
             AudioPresetDto.builder()
@@ -106,7 +116,11 @@ public class AudioServiceImpl implements AudioService {
                     speakerProperties.getHost(), speakerProperties.getPort());
 
             try {
-                streamPcmToSocket(new ByteArrayInputStream(customAudio.getAudioData()));
+                InputStream audioStream = new ByteArrayInputStream(customAudio.getAudioData());
+                if (speakerProperties.isChimeEnabled() && wakeUpChimePcm != null) {
+                    audioStream = new SequenceInputStream(new ByteArrayInputStream(wakeUpChimePcm), audioStream);
+                }
+                streamPcmToSocket(audioStream);
             } catch (Exception e) {
                 log.error("Failed to stream custom audio '{}': {}", customAudio.getName(), e.getMessage(), e);
                 throw new RuntimeException("Error streaming custom audio: " + e.getMessage(), e);
@@ -150,7 +164,11 @@ public class AudioServiceImpl implements AudioService {
 
         try {
             byte[] pcmData = transcodeToPcm(audioData);
-            streamPcmToSocket(new ByteArrayInputStream(pcmData));
+            InputStream audioStream = new ByteArrayInputStream(pcmData);
+            if (speakerProperties.isChimeEnabled() && wakeUpChimePcm != null) {
+                audioStream = new SequenceInputStream(new ByteArrayInputStream(wakeUpChimePcm), audioStream);
+            }
+            streamPcmToSocket(audioStream);
             log.info("Voice stream successfully played!");
         } catch (Exception e) {
             log.error("Failed to stream voice recording: {}", e.getMessage(), e);
@@ -281,6 +299,41 @@ public class AudioServiceImpl implements AudioService {
 
             os.flush();
             log.info("Successfully sent {} bytes of PCM audio to speaker", totalBytesSent);
+        }
+    }
+
+    /**
+     * Генерация мягкого двухтонального гонга-преамбулы (~500 мс) для пробуждения спящего тракта колонки
+     */
+    private byte[] generateWakeUpChime() {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        double baseVol = Math.max(0.01, Math.min(1.0, speakerProperties.getChimeVolume()));
+        // Тон 1: Ре 5-й октавы (587.33 Гц) с мягким спадом
+        addChimeTone(baos, 587.33, 140, baseVol * 0.75, baseVol * 0.2);
+        // Тон 2: Ля 5-й октавы (880.00 Гц) с мягким затуханием
+        addChimeTone(baos, 880.00, 180, baseVol, baseVol * 0.05);
+        // Микропауза 160 мс тишины для естественного отделения преамбулы от речи
+        int silenceFrames = (int) (44100 * 0.16);
+        byte[] zeroBuffer = new byte[silenceFrames * 4];
+        baos.write(zeroBuffer, 0, zeroBuffer.length);
+        return baos.toByteArray();
+    }
+
+    private void addChimeTone(ByteArrayOutputStream baos, double freq, int durationMs, double startGain, double endGain) {
+        int nSamples = (int) (44100L * durationMs / 1000);
+        int attackSamples = (int) (44100 * 0.01); // 10мс мягкая атака для исключения щелчка
+        for (int i = 0; i < nSamples; i++) {
+            double t = (double) i / nSamples;
+            double gain = startGain + (endGain - startGain) * t;
+            if (i < attackSamples) {
+                gain *= ((double) i / attackSamples);
+            }
+            short val = (short) (32767 * gain * Math.sin(2.0 * Math.PI * freq * i / 44100.0));
+            // 16-bit LE стерео (L, R)
+            baos.write(val & 0xFF);
+            baos.write((val >> 8) & 0xFF);
+            baos.write(val & 0xFF);
+            baos.write((val >> 8) & 0xFF);
         }
     }
 }
