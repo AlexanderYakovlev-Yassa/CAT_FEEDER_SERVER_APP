@@ -2,6 +2,7 @@ package pl.torun.alex.feeder.feeder_server.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,8 +29,14 @@ public class AudioController {
     @PostMapping("/play/{presetId}")
     public ResponseEntity<Map<String, Object>> playPreset(@PathVariable String presetId) {
         log.info("Request to play preset: {}", presetId);
-        audioService.playPreset(presetId);
-        return ResponseEntity.ok(Map.of("status", "SUCCESS", "presetId", presetId));
+        try {
+            audioService.playPreset(presetId);
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "presetId", presetId));
+        } catch (Exception e) {
+            log.error("Failed to play preset {}: {}", presetId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("status", "ERROR", "message", e.getMessage() != null ? e.getMessage() : "Playback failed"));
+        }
     }
 
     @PostMapping(value = "/voice", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
