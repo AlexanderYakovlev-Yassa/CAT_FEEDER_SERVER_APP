@@ -20,7 +20,7 @@ services:
       # Override CAM_FFMPEG_PATH if ffmpeg is not on PATH in your image.
       CAM_FFMPEG_PATH: ffmpeg
       CAM_RECONNECT_INTERVAL_MS: 30000
-      SPEAKER_HOST: ${SPEAKER_HOST:-192.168.100.44}
+      SPEAKER_HOST: ${SPEAKER_HOST:-192.168.100.12}
       SPEAKER_PORT: ${SPEAKER_PORT:-5000}
     volumes:
       # Persistent storage for MPEG-TS camera segments.
