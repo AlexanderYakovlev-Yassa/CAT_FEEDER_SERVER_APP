@@ -18,6 +18,7 @@ public class CameraDto {
     private String rtspUrl;
     private String storagePath;
     private boolean autoStart;
+    private String detectionZones;
     private Set<Long> userIds = new HashSet<>();
 }
 

@@ -59,6 +59,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
 
     private final CameraProperties properties;
     private final CameraRepository cameraRepository;
+    private final pl.torun.alex.feeder.feeder_server.mqtt.MqttService mqttService;
 
     // -------------------------------------------------------------------------
     // HLS playlists
@@ -257,6 +258,66 @@ public class CameraStreamServiceImpl implements CameraStreamService {
     private Camera findCamera(String name) {
         return cameraRepository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown camera: " + name));
+    }
+
+    @Override
+    public byte[] captureSnapshot(String cameraName) {
+        Camera cam = findCamera(cameraName);
+        String rtspUrl = cam.getRtspUrl();
+        String snapshotRtsp = rtspUrl.contains("/live/ch0") ? rtspUrl.replace("/live/ch0", "/live/ch1") : rtspUrl;
+
+        List<String> command = List.of(
+                properties.getFfmpegPath(),
+                "-nostdin",
+                "-y",
+                "-loglevel", "error",
+                "-rtsp_transport", "tcp",
+                "-timeout", "4000000",
+                "-i", snapshotRtsp,
+                "-vframes", "1",
+                "-f", "image2pipe",
+                "-vcodec", "mjpeg",
+                "-"
+        );
+
+        try {
+            Process process = new ProcessBuilder(command).start();
+            byte[] bytes = process.getInputStream().readAllBytes();
+            boolean finished = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new IllegalStateException("FFmpeg snapshot timed out");
+            }
+            if (bytes.length == 0) {
+                throw new IllegalStateException("FFmpeg captured empty snapshot");
+            }
+            return bytes;
+        } catch (Exception e) {
+            log.error("Failed to capture camera snapshot for '{}': {}", cameraName, e.getMessage());
+            throw new RuntimeException("Snapshot capture failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public String getDetectionZones(String cameraName) {
+        Camera cam = findCamera(cameraName);
+        return cam.getDetectionZones() != null ? cam.getDetectionZones() : "[]";
+    }
+
+    @Override
+    public void updateDetectionZones(String cameraName, String zonesJson) {
+        Camera cam = findCamera(cameraName);
+        cam.setDetectionZones(zonesJson);
+        cameraRepository.save(cam);
+
+        try {
+            String topic = "catfeeder/camera/zones/update";
+            String payload = "{\"camera\":\"" + cameraName + "\",\"zones\":" + zonesJson + "}";
+            mqttService.publish(topic, payload, 1, false);
+            log.info("Published updated detection zones for camera '{}' to MQTT topic '{}'", cameraName, topic);
+        } catch (Exception e) {
+            log.warn("Failed to publish updated zones to MQTT: {}", e.getMessage());
+        }
     }
 }
 

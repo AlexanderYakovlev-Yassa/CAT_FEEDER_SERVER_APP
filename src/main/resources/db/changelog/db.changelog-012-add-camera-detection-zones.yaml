@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-add-camera-detection-zones
+      author: alex
+      changes:
+        - addColumn:
+            tableName: camera
+            columns:
+              - column:
+                  name: detection_zones
+                  type: TEXT

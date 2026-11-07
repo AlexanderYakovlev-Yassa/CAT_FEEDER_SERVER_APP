@@ -32,3 +32,6 @@ databaseChangeLog:
   - include:
       file: db.changelog-011-create-custom-audio.yaml
       relativeToChangelogFile: true
+  - include:
+      file: db.changelog-012-add-camera-detection-zones.yaml
+      relativeToChangelogFile: true

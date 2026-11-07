@@ -236,6 +236,54 @@ public class CameraStreamController {
         return ResponseEntity.ok(cameraStreamService.listSegmentsForDay(name, date));
     }
 
+    /**
+     * Captures and returns a live JPEG snapshot from the camera stream.
+     */
+    @GetMapping(value = "/{name}/snapshot", produces = MediaType.IMAGE_JPEG_VALUE)
+    @PreAuthorize("hasAuthority('read-schedule')")
+    public ResponseEntity<byte[]> snapshot(
+            @PathVariable String name,
+            @AuthenticationPrincipal String username) {
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        byte[] jpeg = cameraStreamService.captureSnapshot(name);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                .body(jpeg);
+    }
+
+    /**
+     * Returns detection zones JSON for the camera.
+     */
+    @GetMapping(value = "/{name}/detection-zones", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('read-schedule')")
+    public ResponseEntity<String> getDetectionZones(
+            @PathVariable String name,
+            @AuthenticationPrincipal String username) {
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(cameraStreamService.getDetectionZones(name));
+    }
+
+    /**
+     * Updates detection zones for the camera and notifies listeners via MQTT.
+     */
+    @PutMapping(value = "/{name}/detection-zones", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('manage-schedule')")
+    public ResponseEntity<Void> updateDetectionZones(
+            @PathVariable String name,
+            @RequestBody String zonesJson,
+            @AuthenticationPrincipal String username) {
+        if (!cameraService.hasAccess(name, username)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        cameraStreamService.updateDetectionZones(name, zonesJson);
+        return ResponseEntity.ok().build();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

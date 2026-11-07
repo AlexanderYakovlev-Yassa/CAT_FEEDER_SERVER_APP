@@ -58,5 +58,20 @@ public interface CameraStreamService {
      * @return empty list if no recordings exist for that date
      */
     List<SegmentInfoDto> listSegmentsForDay(String cameraName, LocalDate date);
+
+    /**
+     * Captures a single JPEG snapshot from the camera stream.
+     */
+    byte[] captureSnapshot(String cameraName);
+
+    /**
+     * Gets the JSON string of detection zones for the camera.
+     */
+    String getDetectionZones(String cameraName);
+
+    /**
+     * Updates detection zones for the camera and notifies listeners via MQTT.
+     */
+    void updateDetectionZones(String cameraName, String zonesJson);
 }
 

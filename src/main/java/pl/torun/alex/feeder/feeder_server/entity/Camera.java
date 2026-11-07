@@ -40,6 +40,10 @@ public class Camera {
     @Column(nullable = false)
     private boolean autoStart = false;
 
+    /** JSON-encoded detection zones configuration */
+    @Column(name = "detection_zones", columnDefinition = "TEXT")
+    private String detectionZones;
+
     /** Users who have access to this camera. */
     @ManyToMany(mappedBy = "cameras", fetch = FetchType.LAZY)
     private Set<AppUser> users = new HashSet<>();
