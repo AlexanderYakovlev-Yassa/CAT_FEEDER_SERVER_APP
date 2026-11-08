@@ -12,6 +12,9 @@ import pl.torun.alex.feeder.feeder_server.repository.CameraRepository;
 import pl.torun.alex.feeder.feeder_server.service.CameraRecordingService;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -19,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -71,6 +76,14 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
      */
     private final Set<String> binaryMissingCameras = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Cameras known to be unreachable over TCP (offline).
+     * Suppresses repeated reconnect warnings in the watchdog until reachable again.
+     */
+    private final Set<String> offlineCameras = ConcurrentHashMap.newKeySet();
+
+    private static final Pattern RTSP_URL_PATTERN = Pattern.compile("rtsp://(?:[^@]+@)?([^:/]+)(?::(\\d+))?.*");
+
     // -------------------------------------------------------------------------
     // Lifecycle
     // -------------------------------------------------------------------------
@@ -116,8 +129,9 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
 
     @Override
     public synchronized void startRecording(String cameraName) {
-        // Explicit API call: always clear the "binary missing" flag and retry.
+        // Explicit API call: always clear suppression flags and retry.
         binaryMissingCameras.remove(cameraName);
+        offlineCameras.remove(cameraName);
 
         Process existing = activeProcesses.get(cameraName);
         if (existing != null && existing.isAlive()) {
@@ -233,6 +247,15 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
                 ));
     }
 
+    @Override
+    public Map<String, Boolean> getReachabilityStatus() {
+        return cameraRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        Camera::getName,
+                        cam -> isCameraReachable(cam.getRtspUrl())
+                ));
+    }
+
     // -------------------------------------------------------------------------
     // Scheduled tasks
     // -------------------------------------------------------------------------
@@ -301,15 +324,32 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
 
             Process p = activeProcesses.get(cam.getName());
             if (p == null || !p.isAlive()) {
-                log.warn("FFmpeg process for camera '{}' is not running – reconnecting…",
-                        cam.getName());
                 activeProcesses.remove(cam.getName());
+
+                boolean reachable = isCameraReachable(cam.getRtspUrl());
+                if (!reachable) {
+                    if (offlineCameras.add(cam.getName())) {
+                        log.warn("Camera '{}' is unreachable (offline). Suppressing further reconnect logs until it is back online.",
+                                cam.getName());
+                    }
+                    return;
+                }
+
+                if (offlineCameras.remove(cam.getName())) {
+                    log.info("Camera '{}' is reachable again. Resuming recording…", cam.getName());
+                } else {
+                    log.warn("FFmpeg process for camera '{}' is not running – reconnecting…",
+                            cam.getName());
+                }
+
                 try {
                     startRecording(cam.getName());
                 } catch (Exception e) {
                     log.warn("Reconnect attempt for camera '{}' failed – will retry in {} ms.",
                             cam.getName(), properties.getReconnectIntervalMs());
                 }
+            } else {
+                offlineCameras.remove(cam.getName());
             }
         });
     }
@@ -317,6 +357,29 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Checks if the camera RTSP port is reachable via TCP.
+     */
+    private boolean isCameraReachable(String rtspUrl) {
+        if (rtspUrl == null || rtspUrl.isBlank()) {
+            return false;
+        }
+        try {
+            Matcher m = RTSP_URL_PATTERN.matcher(rtspUrl);
+            if (!m.matches()) {
+                return false;
+            }
+            String host = m.group(1);
+            int port = m.group(2) != null ? Integer.parseInt(m.group(2)) : 554;
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress(host, port), 1500);
+                return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     /**
      * Returns true if the configured FFmpeg binary can be found on PATH or as

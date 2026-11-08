@@ -15,5 +15,11 @@ public interface CameraRecordingService {
      * Key = camera name, value = true if the FFmpeg process is currently alive.
      */
     Map<String, Boolean> getRecordingStatus();
+
+    /**
+     * Returns the network reachability (online/offline) of every configured camera.
+     * Key = camera name, value = true if the camera RTSP port is currently reachable.
+     */
+    Map<String, Boolean> getReachabilityStatus();
 }
 

@@ -59,5 +59,17 @@ public class CameraRecordingController {
     public ResponseEntity<Map<String, Boolean>> status() {
         return ResponseEntity.ok(cameraRecordingService.getRecordingStatus());
     }
+
+    /**
+     * Returns the reachability (online/offline) state of every configured camera.
+     *
+     * <p>Response body example:
+     * <pre>{ "CatCamMaster": true }</pre>
+     */
+    @GetMapping("/reachability")
+    @PreAuthorize("hasAuthority('read-schedule')")
+    public ResponseEntity<Map<String, Boolean>> reachability() {
+        return ResponseEntity.ok(cameraRecordingService.getReachabilityStatus());
+    }
 }
 
