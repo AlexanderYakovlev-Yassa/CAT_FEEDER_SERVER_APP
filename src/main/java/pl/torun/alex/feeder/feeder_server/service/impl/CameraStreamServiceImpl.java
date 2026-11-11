@@ -11,12 +11,18 @@ import pl.torun.alex.feeder.feeder_server.dto.SegmentInfoDto;
 import pl.torun.alex.feeder.feeder_server.service.CameraStreamService;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -260,10 +266,22 @@ public class CameraStreamServiceImpl implements CameraStreamService {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown camera: " + name));
     }
 
+    private static final Pattern RTSP_URL_PATTERN =
+            Pattern.compile("rtsp://(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\\d+))?.*");
+
     @Override
     public byte[] captureSnapshot(String cameraName) {
         Camera cam = findCamera(cameraName);
         String rtspUrl = cam.getRtspUrl();
+
+        // 1. Сначала пробуем прямой HTTP-снимок с ONVIF порта 8899 (мгновенно, без создания лишних RTSP-сессий)
+        byte[] httpSnap = tryHttpSnapshot(rtspUrl);
+        if (httpSnap != null && httpSnap.length > 0) {
+            log.debug("Captured camera snapshot for '{}' via direct HTTP", cameraName);
+            return httpSnap;
+        }
+
+        // 2. Fallback: FFmpeg по субпотоку RTSP
         String snapshotRtsp = rtspUrl.contains("/live/ch0") ? rtspUrl.replace("/live/ch0", "/live/ch1") : rtspUrl;
 
         List<String> command = List.of(
@@ -272,7 +290,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
                 "-y",
                 "-loglevel", "error",
                 "-rtsp_transport", "tcp",
-                "-timeout", "4000000",
+                "-timeout", "10000000",
                 "-i", snapshotRtsp,
                 "-vframes", "1",
                 "-f", "image2pipe",
@@ -283,7 +301,7 @@ public class CameraStreamServiceImpl implements CameraStreamService {
         try {
             Process process = new ProcessBuilder(command).start();
             byte[] bytes = process.getInputStream().readAllBytes();
-            boolean finished = process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            boolean finished = process.waitFor(8, java.util.concurrent.TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 throw new IllegalStateException("FFmpeg snapshot timed out");
@@ -296,6 +314,43 @@ public class CameraStreamServiceImpl implements CameraStreamService {
             log.error("Failed to capture camera snapshot for '{}': {}", cameraName, e.getMessage());
             throw new RuntimeException("Snapshot capture failed: " + e.getMessage(), e);
         }
+    }
+
+    private byte[] tryHttpSnapshot(String rtspUrl) {
+        if (rtspUrl == null || rtspUrl.isBlank()) return null;
+        try {
+            Matcher m = RTSP_URL_PATTERN.matcher(rtspUrl);
+            if (!m.matches()) return null;
+
+            String user = m.group(1);
+            String pass = m.group(2);
+            String host = m.group(3);
+
+            // Cinnado / Tuya IP-камеры отдают мгновенный JPEG по порту 8899
+            URI uri = URI.create("http://" + host + ":8899/api/v1/snap.cgi?chn=1");
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(2))
+                    .build();
+
+            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(Duration.ofSeconds(3))
+                    .GET();
+
+            if (user != null && pass != null) {
+                String auth = Base64.getEncoder().encodeToString(
+                        (user + ":" + pass).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                reqBuilder.header("Authorization", "Basic " + auth);
+            }
+
+            HttpResponse<byte[]> response = client.send(reqBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() == 200 && response.body() != null && response.body().length > 100) {
+                return response.body();
+            }
+        } catch (Exception e) {
+            log.debug("Direct HTTP snapshot attempt failed: {}", e.getMessage());
+        }
+        return null;
     }
 
     @Override
