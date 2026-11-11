@@ -155,9 +155,8 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
             // Per-camera FFmpeg log so stdout/stderr are never silently lost.
             Path ffmpegLog = storageDir.resolve(cam.getName() + "_ffmpeg.log");
 
-            // Use the RTSP-specific `-timeout` parameter (in seconds) as it's more compatible
-            // than the general `-stimeout` (in microseconds).
-            long timeoutSeconds = properties.getFfmpegStimeoutUs() / 1_000_000;
+            // Use the RTSP-specific `-timeout` parameter (in microseconds).
+            long timeoutUs = properties.getFfmpegStimeoutUs();
 
             // Build the codec arguments.
             // transcodeForBrowser=false (default): pass-through copy – preserves the original
@@ -185,7 +184,7 @@ public class CameraRecordingServiceImpl implements CameraRecordingService {
                     properties.getFfmpegPath(),
                     "-y",                          // overwrite output files without prompting
                     "-rtsp_transport", "tcp",       // TCP is more reliable for home cams
-                    "-timeout", String.valueOf(timeoutSeconds),
+                    "-timeout", String.valueOf(timeoutUs),
                     "-i", cam.getRtspUrl()
             ));
             command.addAll(codecArgs);
