@@ -2,7 +2,7 @@ package pl.torun.alex.feeder.feeder_server.mqtt;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -16,14 +16,17 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @ConditionalOnProperty(prefix = "mqtt", name = "enabled", havingValue = "true")
-public class MqttService implements MqttCallback {
+public class MqttService implements MqttCallbackExtended {
 
     private static final Logger logger = LoggerFactory.getLogger(MqttService.class);
 
     private final MqttProperties properties;
+    private final Map<String, IMqttMessageListener> subscriptions = new ConcurrentHashMap<>();
     private MqttClient client;
 
     public MqttService(MqttProperties properties) {
@@ -101,8 +104,9 @@ public class MqttService implements MqttCallback {
     }
 
     public void subscribe(String topic, IMqttMessageListener listener) {
+        subscriptions.put(topic, listener);
         if (client == null || !client.isConnected()) {
-            logger.warn("MQTT client not connected - cannot subscribe");
+            logger.warn("MQTT client not connected - subscription to {} will be applied on connect", topic);
             return;
         }
         try {
@@ -111,6 +115,20 @@ public class MqttService implements MqttCallback {
         } catch (MqttException e) {
             logger.error("Failed to subscribe to topic {}: {}", topic, e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void connectComplete(boolean reconnect, String serverURI) {
+        logger.info("MQTT {}complete to {} — restoring {} subscription(s)",
+                reconnect ? "re" : "", serverURI, subscriptions.size());
+        subscriptions.forEach((topic, listener) -> {
+            try {
+                client.subscribe(topic, listener);
+                logger.info("Subscribed to MQTT topic {}", topic);
+            } catch (MqttException e) {
+                logger.error("Failed to subscribe to topic {} on connect: {}", topic, e.getMessage(), e);
+            }
+        });
     }
 
     @Override
