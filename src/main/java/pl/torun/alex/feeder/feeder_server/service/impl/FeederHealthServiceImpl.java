@@ -12,6 +12,7 @@ import pl.torun.alex.feeder.feeder_server.entity.Device;
 import pl.torun.alex.feeder.feeder_server.mqtt.MqttService;
 import pl.torun.alex.feeder.feeder_server.repository.DeviceRepository;
 import pl.torun.alex.feeder.feeder_server.service.FeederHealthService;
+import pl.torun.alex.feeder.feeder_server.service.TelegramNotificationService;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -33,6 +34,7 @@ public class FeederHealthServiceImpl implements FeederHealthService {
     private final Optional<MqttService> mqttService;
     private final DeviceRepository deviceRepository;
     private final ObjectMapper objectMapper;
+    private final Optional<TelegramNotificationService> telegramNotificationService;
     private final Clock clock;
     private final ConcurrentHashMap<String, FeederStatusDto> statuses = new ConcurrentHashMap<>();
 
@@ -40,18 +42,21 @@ public class FeederHealthServiceImpl implements FeederHealthService {
     public FeederHealthServiceImpl(
             Optional<MqttService> mqttService,
             DeviceRepository deviceRepository,
-            ObjectMapper objectMapper) {
-        this(mqttService, deviceRepository, objectMapper, Clock.systemUTC());
+            ObjectMapper objectMapper,
+            Optional<TelegramNotificationService> telegramNotificationService) {
+        this(mqttService, deviceRepository, objectMapper, telegramNotificationService, Clock.systemUTC());
     }
 
     FeederHealthServiceImpl(
             Optional<MqttService> mqttService,
             DeviceRepository deviceRepository,
             ObjectMapper objectMapper,
+            Optional<TelegramNotificationService> telegramNotificationService,
             Clock clock) {
         this.mqttService = mqttService;
         this.deviceRepository = deviceRepository;
         this.objectMapper = objectMapper;
+        this.telegramNotificationService = telegramNotificationService;
         this.clock = clock;
     }
 
@@ -94,6 +99,10 @@ public class FeederHealthServiceImpl implements FeederHealthService {
             if (wasOffline) {
                 log.info("Feeder {} is ONLINE (rssi={} dBm, freeHeap={} bytes)",
                         deviceId, updated.getRssi(), updated.getFreeHeap());
+                String detail = updated.getRssi() != null
+                        ? String.format("WiFi RSSI: %d dBm", updated.getRssi())
+                        : "Heartbeat received";
+                telegramNotificationService.ifPresent(tg -> tg.notifyFeederStatusChanged(deviceId, true, detail));
             }
         } catch (Exception e) {
             log.warn("Failed to parse heartbeat payload on {}: {}", topic, e.getMessage());
@@ -128,7 +137,9 @@ public class FeederHealthServiceImpl implements FeederHealthService {
                         .build();
                 statuses.put(deviceId, updated);
                 if (wasOnline || existing == null) {
-                    log.warn("Feeder {} went OFFLINE: {}", deviceId, json.path("message").asText("LWT/status"));
+                    String reason = json.path("message").asText("LWT/status");
+                    log.warn("Feeder {} went OFFLINE: {}", deviceId, reason);
+                    telegramNotificationService.ifPresent(tg -> tg.notifyFeederStatusChanged(deviceId, false, reason));
                 }
                 return;
             }
@@ -148,6 +159,8 @@ public class FeederHealthServiceImpl implements FeederHealthService {
             statuses.put(deviceId, updated);
             if (wasOffline) {
                 log.info("Feeder {} is ONLINE (status={})", deviceId, statusText);
+                telegramNotificationService.ifPresent(
+                        tg -> tg.notifyFeederStatusChanged(deviceId, true, "Статус: " + statusText));
             }
         } catch (Exception e) {
             log.warn("Failed to parse status payload on {}: {}", topic, e.getMessage());
@@ -163,6 +176,8 @@ public class FeederHealthServiceImpl implements FeederHealthService {
                 dto.setStatus("offline");
                 dto.setMotorRunning(false);
                 log.warn("Feeder {} timed out (no heartbeat or status since {})", deviceId, dto.getLastSeenAt());
+                telegramNotificationService.ifPresent(
+                        tg -> tg.notifyFeederStatusChanged(deviceId, false, "Таймаут хартбита (>150 с)"));
             }
         });
     }

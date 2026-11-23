@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pl.torun.alex.feeder.feeder_server.dto.FeederStatusDto;
 import pl.torun.alex.feeder.feeder_server.entity.Device;
 import pl.torun.alex.feeder.feeder_server.repository.DeviceRepository;
+import pl.torun.alex.feeder.feeder_server.service.TelegramNotificationService;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -19,13 +20,17 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class FeederHealthServiceImplTest {
 
     @Mock
     private DeviceRepository deviceRepository;
+
+    @Mock
+    private TelegramNotificationService telegramNotificationService;
 
     private AtomicReference<Instant> currentTime;
     private FeederHealthServiceImpl service;
@@ -49,7 +54,9 @@ class FeederHealthServiceImplTest {
                 return currentTime.get();
             }
         };
-        service = new FeederHealthServiceImpl(Optional.empty(), deviceRepository, new ObjectMapper(), mutableClock);
+        service = new FeederHealthServiceImpl(
+                Optional.empty(), deviceRepository, new ObjectMapper(),
+                Optional.of(telegramNotificationService), mutableClock);
     }
 
     @Test
@@ -57,6 +64,9 @@ class FeederHealthServiceImplTest {
         service.handleHeartbeat(
                 "catfeeder/FEED001/heartbeat",
                 "{\"device_id\":\"FEED001\",\"status\":\"idle\",\"motor_running\":false,\"rssi\":-50,\"free_heap\":249232,\"uptime_ms\":63683}");
+        service.handleHeartbeat(
+                "catfeeder/FEED001/heartbeat",
+                "{\"device_id\":\"FEED001\",\"status\":\"idle\",\"motor_running\":false,\"rssi\":-52,\"free_heap\":249200,\"uptime_ms\":123683}");
 
         Optional<FeederStatusDto> status = service.getStatus("FEED001");
         assertTrue(status.isPresent());
@@ -64,10 +74,13 @@ class FeederHealthServiceImplTest {
         assertTrue(dto.isOnline());
         assertEquals("idle", dto.getStatus());
         assertFalse(dto.isMotorRunning());
-        assertEquals(-50, dto.getRssi());
-        assertEquals(249232L, dto.getFreeHeap());
-        assertEquals(63683L, dto.getUptimeMs());
+        assertEquals(-52, dto.getRssi());
+        assertEquals(249200L, dto.getFreeHeap());
+        assertEquals(123683L, dto.getUptimeMs());
         assertEquals(currentTime.get(), dto.getLastHeartbeatAt());
+
+        verify(telegramNotificationService, times(1))
+                .notifyFeederStatusChanged(eq("FEED001"), eq(true), anyString());
     }
 
     @Test
@@ -84,6 +97,8 @@ class FeederHealthServiceImplTest {
         assertFalse(dto.isOnline());
         assertEquals("offline", dto.getStatus());
         assertEquals(-48, dto.getRssi());
+        verify(telegramNotificationService, times(1))
+                .notifyFeederStatusChanged(eq("FEED002"), eq(false), eq("Unexpected disconnect (LWT)"));
     }
 
     @Test
@@ -98,6 +113,8 @@ class FeederHealthServiceImplTest {
         FeederStatusDto dto = service.getStatus("FEED001").orElseThrow();
         assertFalse(dto.isOnline());
         assertEquals("offline", dto.getStatus());
+        verify(telegramNotificationService, times(1))
+                .notifyFeederStatusChanged(eq("FEED001"), eq(false), anyString());
     }
 
     @Test
